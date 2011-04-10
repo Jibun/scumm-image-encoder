@@ -1,0 +1,1 @@
+E:\Apps\Programming\Python2.5\python.exe setup.py py2exe %1 --bundle 2
