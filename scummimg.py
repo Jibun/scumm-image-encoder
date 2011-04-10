@@ -4,11 +4,10 @@
 #### Laurence Dougal Myers
 #### Begun 25 September 2004
 #### Slightly modified 12 May 2009
+#### Revitalised April 2011
 ####
-#### Decode an image comprised of 3 files into a single PNG
+#### Encode/decode images from LucasArts adventure games.
 ####
-#### Currently only works for Monkey Island 2, may work for other
-#### V5 games.
 ####
 ##################################################################
 #### TODO:
@@ -26,10 +25,7 @@ import sys
 import array
 import Image
 import traceback
-##import numarray
-##from sets import Set
 import copy
-import bisect
 from optparse import OptionParser
 
 rmhdfile = "000_RMHD.dmp"
@@ -238,6 +234,7 @@ def strToArray(input):
 #---- End basic data manipulation
 
 def getDimensions():
+
     rmhd = file(rmhdfile, 'rb')
     getQWord(rmhd, 0)
     width = getWordLE(rmhd, 0)
@@ -533,8 +530,7 @@ def doMethodTwo(smap, img, limit, stripNum, paramSub, pal):
                         break
                 ##print "put pixel"
 
-def decodeImage():
-    
+def decodeImage(lflf):
     print "Reading dimensions from RMHD..."
     # Get dimensions from RMHD file and initialise an image container
     width, height = getDimensions()
@@ -835,32 +831,32 @@ def encodeImage():
 
 
 def main():
-    oparser = OptionParser(usage="%prog [options] imagefile.png",
+    oparser = OptionParser(usage="%prog [options] lflf_path imagefile.png",
                       version="mi2img v1 r2")
     
     oparser.add_option("-e", "--encode", action="store_true",
                       dest="encode", default=False,
-                      help="Encode the given PNG into a format useable by SCUMM V5 games. "
+                      help="Encode the given PNG into a format useable by SCUMM V5/v6 games. "
                       "You must already have an existing 000_RMHD.dmp, 000_SMAP.dmp, and 006_CLUT.dmp.")
     oparser.add_option("-d", "--decode", action="store_true",
                       dest="decode", default=False,
-                      help="Decode a SCUMM V5 image into a PNG file, "
+                      help="Decode a SCUMM V5/V6 image into a PNG file, "
                       "from 000_RMHD.dmp, 000_SMAP.dmp, and 006_CLUT.dmp files.")
     
     options, args = oparser.parse_args()
     
-    if len(args) == 0:
+    if len(args) != 2:
         returnval = 1
         oparser.print_help()
     elif options.encode:
         global inputfilename
-        inputfilename = args[0]
+        inputfilename = args[1]
         encodeImage()
         print "Done!"
         returnval = 0
     elif options.decode:
         global outfilename
-        outfile = args[0]
+        outfilename = args[1]
         decodeImage()
         print "Done!"
         returnval = 0
