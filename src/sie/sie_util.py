@@ -19,6 +19,26 @@ class ImageContainer:
         ##[self.img.append(0) for dummyvar in range(width*height+width)]
 
 
+
+def indent_elementtree(elem, level=0):
+    """ This function taken from http://effbot.org/zone/element-lib.htm#prettyprint.
+    By Fredrik Lundh & Paul Du Bois."""
+    i = "\n" + (level * "  ")
+    if len(elem):
+        if not elem.text or not elem.text.strip():
+            elem.text = i + "  "
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+        for child in elem:
+            indent_elementtree(child, level+1)
+        if not child.tail or not child.tail.strip():
+            child.tail = i
+        if not elem.tail or not elem.tail.strip():
+            elem.tail = i
+    else:
+        if level and (not elem.tail or not elem.tail.strip()):
+            elem.tail = i
+
 # Decrypt also doubles as encrypt, I'm just too lazy to name it properly
 def decrypt(input):
     """ Perform an XOR with a decrypt value on an array."""

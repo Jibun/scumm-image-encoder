@@ -205,11 +205,9 @@ def doMethodTwo(smap, img, limit, stripNum, paramSub, pal):
     img.img[(stripNum * 8 + xCounter) + (yCounter * img.width)] = currPalIndex
     # Move to next pixel
     xCounter += 1
-    ##print "put first pixel"
 
 
     while smap.tell() < limit and yCounter < img.height:
-    ##while smap.tell() < limit:
         thisByte = byteToBits(getByte(smap, 0), LE=1)
 
         # For each bit
@@ -317,7 +315,8 @@ def doMethodTwo(smap, img, limit, stripNum, paramSub, pal):
                 # This seems to occur in Sam 'n' Max room 2. The final image seems to be alright
                 #  if we ignore these pixels.
                 if final_index >= len(img.img):
-                    print "x_index + y_index = %s, which is outside the image (max: %s)." % (final_index, len(img.img))
+                    pass
+                    #print "x_index + y_index = %s, which is outside the image (max: %s)." % (final_index, len(img.img))
                 else:
                     img.img[x_index + y_index] = currPalIndex
                 # Move to next pixel
@@ -357,6 +356,7 @@ def decodeImage(lflf_path, image_path, version=6):
          for _ in range(numStrips)]
 
     print "Reading strips from SMAP... "
+    is_transparent = False
     # For reach strip
     for stripnum, s in enumerate(stripOffsets):
         smap.seek(s, 0)
@@ -416,14 +416,15 @@ def decodeImage(lflf_path, image_path, version=6):
         # Try/except is for debugging - will show however much image we've decoded
         try:
             if compMethod == 0:
-                print "Processing uncompresed strip"
+                #print "Processing uncompresed strip"
                 doUncompressed(smap, img, limit, stripnum)
             elif compMethod == 1:
-                print "Processing strip with method one"
+                #print "Processing strip with method one"
                 doMethodOne(smap, img, limit, stripnum, paramSub, rendDir)
             elif compMethod == 2:
-                print "Processing strip with method two"
+                #print "Processing strip with method two"
                 doMethodTwo(smap, img, limit, stripnum, paramSub, pal)
+            is_transparent = is_transparent or trans
         except Exception, e:
             print "ERROR: %s" % e
             print "An error occured - attempting to show incomplete image."
@@ -433,6 +434,9 @@ def decodeImage(lflf_path, image_path, version=6):
             im.show()
             smap.close()
             raise e
+    if is_transparent:
+        print "WARNING! The original image contains transparency!\n " + \
+                "If you try to re-encode the output file, you will lose all transparency!"
 
     smap.close()
 

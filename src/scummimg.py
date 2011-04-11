@@ -39,7 +39,7 @@ def main():
                       "from an unpacked LFLF block.")
     oparser.add_option("-v", "--sversion", action="store",
                       dest="version", default=6, type="int",
-                      help="The version of SCUMM to target.")
+                      help="The version of SCUMM to target (5 or 6).")
     
     options, args = oparser.parse_args()
     
