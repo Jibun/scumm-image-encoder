@@ -2,6 +2,9 @@ import array
 
 decryptvalue = 0x69
 
+class ScummImageEncoderException(Exception):
+    pass
+
 class ImageContainer:
     def __init__(self, width, height):
         """ Container for an image array, with dimensions metadata."""
@@ -14,6 +17,7 @@ class ImageContainer:
         # to a file anyway)
         self.img = array.array('B', [0] * (width * height))
         ##[self.img.append(0) for dummyvar in range(width*height+width)]
+
 
 # Decrypt also doubles as encrypt, I'm just too lazy to name it properly
 def decrypt(input):

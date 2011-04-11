@@ -1,10 +1,8 @@
+import xml.etree.ElementTree as et
+import os
 import sys
-import Image
-import traceback
-from sie_util import getQWord, getWordLE, arrayToInt, getByte, byteToBits, ImageContainer, getDWord
-
-outfilename = "output"
-outfiletype = "png"
+import Image # from Python Imaging Library
+from sie_util import getQWord, getWordLE, arrayToInt, getByte, byteToBits, ImageContainer, getDWord, getDWordLE, ScummImageEncoderException
 
 HORIZONTAL = 0
 VERTICAL = 1
@@ -24,22 +22,37 @@ DECPAL1 = 5
 DECPAL2 = 6
 DECPAL3 = 7
 
-def getDimensions(rmhdfile):
-    rmhd = file(rmhdfile, 'rb')
-    getQWord(rmhd, 0)
-    width = getWordLE(rmhd, 0)
-    height = getWordLE(rmhd, 0)
-    rmhd.close()
-    return arrayToInt(width), arrayToInt(height)
+def getDimensions(lflf_path, version):
+    rmhd_path = os.path.join(lflf_path, "ROOM", "RMHD.xml")
+    if not os.path.isfile(rmhd_path):
+        raise ScummImageEncoderException("Can't find room header file: %s" % rmhd_path)
+    tree = et.parse(rmhd_path)
+    root = tree.getroot()
+    width = int(root.find("width").text)
+    height = int(root.find("height").text)
+    return width, height
 
-def getPalette(palfile):
-    palf = file(palfile, 'rb')
+def getPalette(lflf_path, version):
+    if version <= 5:
+        pal_path = os.path.join(lflf_path, "ROOM", "CLUT.dmp")
+    elif version >= 6:
+        print "Will use the first APAL to decode image."
+        pal_path = os.path.join(lflf_path, "ROOM", "PALS", "WRAP", "APAL_001.dmp")
+    if not os.path.isfile(pal_path):
+        raise ScummImageEncoderException("Can't find palette file: %s" % pal_path)
+    palf = file(pal_path, 'rb')
     header = getQWord(palf)
     pal = []
     # Don't try interpreting it as RGB tuples, PIL will understand.
-    [pal.append( arrayToInt(getByte(palf, 0)) ) for i in range(768)]
+    [pal.append( arrayToInt(getByte(palf, 0)) ) for _ in xrange(768)]
     palf.close()
     return pal
+
+def getSmapPath(lflf_path, version):
+    smap_path = os.path.join(lflf_path, "ROOM", "RMIM", "IM00", "SMAP.dmp")
+    if not os.path.isfile(smap_path):
+        raise ScummImageEncoderException("Can't find SMAP file: %s" % smap_path)
+    return smap_path
 
 # Works in custom-made image
 def doUncompressed(smap, img, limit, stripNum):
@@ -316,21 +329,20 @@ def doMethodTwo(smap, img, limit, stripNum, paramSub, pal):
                         break
                 ##print "put pixel"
 
-def decodeImage(lflf):
+def decodeImage(lflf_path, image_path, version=6):
     print "Reading dimensions from RMHD..."
     # Get dimensions from RMHD file and initialise an image container
-    width, height = getDimensions()
+    width, height = getDimensions(lflf_path, version)
     print width, height
     img = ImageContainer(width, height)
 
     print "Reading palette from CLUT..."
     # Get the palette
-    pal = getPalette()
+    pal = getPalette(lflf_path, version)
 
     # Load pixelmap data
-    #destpath = os.path.join("008_RMIM", "001_IM00")
-    #os.chdir(os.path.join(os.getcwd(), destpath))
-    smap = file(smapfile, 'rb')
+    smap_path = getSmapPath(lflf_path, version)
+    smap = file(smap_path, 'rb')
 
     # Do these things so we know the size of the last strip
     limit = 0
@@ -342,7 +354,7 @@ def decodeImage(lflf):
     numStrips = width/8
     stripOffsets = []
     [stripOffsets.append(arrayToInt(getDWordLE(smap, 0)))
-         for dummyvar in range(numStrips)]
+         for _ in range(numStrips)]
 
     print "Reading strips from SMAP... "
     # For reach strip
@@ -413,22 +425,22 @@ def decodeImage(lflf):
                 print "Processing strip with method two"
                 doMethodTwo(smap, img, limit, stripnum, paramSub, pal)
         except Exception, e:
-            traceback.print_exc()
             print "ERROR: %s" % e
             print "An error occured - attempting to show incomplete image."
             im = Image.new('P', (img.width, img.height) )
             im.putpalette(pal)
             im.putdata(img.img)
-            ##im.fromstring(img.img.tostring())
             im.show()
             smap.close()
-            sys.exit(1)
+            raise e
 
     smap.close()
 
-    print "Creating image file..."
+    print "Creating output image file..."
     # Create our new image!
     im = Image.new('P', (img.width, img.height) )
     im.putpalette(pal)
     im.putdata(img.img)
-    im.save(outfilename + "." + outfiletype, outfiletype)
+    if os.path.splitext(image_path)[1].lower() != '.png':
+        image_path += '.png'
+    im.save(image_path, 'png') # always saves to PNG files.

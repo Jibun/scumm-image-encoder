@@ -12,80 +12,60 @@
 ##################################################################
 #### TODO:
 ####
-#### Allow choices for input and output (including output filetype)
-####
 #### Support objects images (including multiple images for a
 #### single object)
 ####
 #### Rename "INCPAL4" etc constants to what they actually are
 ####
 ##################################################################
+import sys
+import traceback
 from optparse import OptionParser
 
 from sie.decoder import *
 from sie.encoder import *
 
-rmhdfile = "000_RMHD.dmp"
-smapfile = "000_SMAP.dmp"
-palfile = "006_CLUT.dmp"
-
-decryptvalue = 0x69
-
-HORIZONTAL = 0
-VERTICAL = 1
-
-DRAWPIX = 0
-READPAL = 2
-READVAL = 3
-SUBVAR = 6
-NEGVAR = 7
-
-INCPAL4 = 0
-INCPAL3 = 1
-INCPAL2 = 2
-INCPAL1 = 3
-READ8BITS = 4
-DECPAL1 = 5
-DECPAL2 = 6
-DECPAL3 = 7
-
-
-
 def main():
     oparser = OptionParser(usage="%prog [options] lflf_path imagefile.png",
-                      version="mi2img v1 r2")
+                      version="scumm image encoder v2 r1")
     
     oparser.add_option("-e", "--encode", action="store_true",
                       dest="encode", default=False,
                       help="Encode the given PNG into a format useable by SCUMM V5/v6 games. "
-                      "You must already have an existing 000_RMHD.dmp, 000_SMAP.dmp, and 006_CLUT.dmp.")
+                      "You must already have an existing unpacked LFLF block, with a RMHD.xml, SMAP, and CLUT or APAL file.")
     oparser.add_option("-d", "--decode", action="store_true",
                       dest="decode", default=False,
                       help="Decode a SCUMM V5/V6 image into a PNG file, "
-                      "from 000_RMHD.dmp, 000_SMAP.dmp, and 006_CLUT.dmp files.")
+                      "from an unpacked LFLF block.")
+    oparser.add_option("-v", "--sversion", action="store",
+                      dest="version", default=6, type="int",
+                      help="The version of SCUMM to target.")
     
     options, args = oparser.parse_args()
     
-    if len(args) != 2:
+    if len(args) != 2 or options.version < 5 or options.version > 6:
         returnval = 1
         oparser.print_help()
-    elif options.encode:
-        global inputfilename
-        inputfilename = args[1]
-        encodeImage()
-        print "Done!"
-        returnval = 0
-    elif options.decode:
-        global outfilename
-        outfilename = args[1]
-        decodeImage()
-        print "Done!"
-        returnval = 0
-    else:
+        return returnval
+
+    lflf_path = args[0]
+    image_path = args[1]
+    try:
+        if options.encode:
+            encodeImage(lflf_path, image_path, options.version)
+            print "Done!"
+            returnval = 0
+        elif options.decode:
+            decodeImage(lflf_path, image_path, options.version)
+            print "Done!"
+            returnval = 0
+        else:
+            returnval = 1
+            oparser.print_help()
+    except Exception, e:
         returnval = 1
-        oparser.print_help()
-        
+        traceback.print_exc()
 
     return returnval
 
-if __name__ == "__main__": main()
+if __name__ == "__main__": sys.exit(main())
