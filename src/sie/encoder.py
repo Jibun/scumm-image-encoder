@@ -32,7 +32,7 @@ def updatePalette(lflf_path, version, source_image, quantization, palette_num):
     elif version == 5:
         pal_path = os.path.join(lflf_path, "ROOM", "CLUT.dmp")
     elif version >= 6:
-        pal_path = os.path.join(lflf_path, "ROOM", "PALS", "WRAP", "APAL_" + palette_num.zfill(3) + ".dmp")
+        pal_path = os.path.join(lflf_path, "ROOM", "PALS", "WRAP", "APAL_" + str(palette_num).zfill(3) + ".dmp")
     if not os.path.isfile(pal_path):
         raise ScummImageEncoderException("Can't find palette file: %s" % pal_path)
     oldclutfile = file(pal_path, 'rb')
@@ -95,7 +95,7 @@ def writeSmap(lflf_path, version, source):
 # specify costumes and/or objects palette to include
 # Allow choice between room or object encoding (affects header generation)
 # Currently just replaces 160 colours
-def encodeImage(lflf_path, image_path, version, quantization):
+def encodeImage(lflf_path, image_path, version, quantization, palette_num):
     """ Convert a paletted image to a 160-colour image, generating
     appropriate header and palette files as well."""
     source_image = Image.open(image_path)

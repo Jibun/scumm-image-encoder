@@ -41,7 +41,7 @@ def getPalette(lflf_path, version, palette_num):
     elif version <= 5:
         pal_path = os.path.join(lflf_path, "ROOM", "CLUT.dmp")
     elif version >= 6:
-        pal_path = os.path.join(lflf_path, "ROOM", "PALS", "WRAP", "APAL_" + palette_num.zfill(3) + ".dmp")
+        pal_path = os.path.join(lflf_path, "ROOM", "PALS", "WRAP", "APAL_" + str(palette_num).zfill(3) + ".dmp")
     if not os.path.isfile(pal_path):
         raise ScummImageEncoderException("Can't find palette file: %s" % pal_path)
     palf = file(pal_path, 'rb')
