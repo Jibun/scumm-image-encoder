@@ -23,7 +23,10 @@ DECPAL2 = 6
 DECPAL3 = 7
 
 def getDimensions(lflf_path, version):
-    rmhd_path = os.path.join(lflf_path, "ROOM", "RMHD.xml")
+    if version <= 4:
+        rmhd_path = os.path.join(lflf_path, "RO", "HD.xml")
+    elif version >= 5:
+        rmhd_path = os.path.join(lflf_path, "ROOM", "RMHD.xml")
     if not os.path.isfile(rmhd_path):
         raise ScummImageEncoderException("Can't find room header file: %s" % rmhd_path)
     tree = et.parse(rmhd_path)
@@ -32,12 +35,13 @@ def getDimensions(lflf_path, version):
     height = int(root.find("height").text)
     return width, height
 
-def getPalette(lflf_path, version):
-    if version <= 5:
+def getPalette(lflf_path, version, palette_num):
+    if version <= 4:
+        pal_path = os.path.join(lflf_path, "RO", "PA.dmp")
+    elif version <= 5:
         pal_path = os.path.join(lflf_path, "ROOM", "CLUT.dmp")
     elif version >= 6:
-        print "Will use the first APAL to decode image."
-        pal_path = os.path.join(lflf_path, "ROOM", "PALS", "WRAP", "APAL_001.dmp")
+        pal_path = os.path.join(lflf_path, "ROOM", "PALS", "WRAP", "APAL_" + palette_num.zfill(3) + ".dmp")
     if not os.path.isfile(pal_path):
         raise ScummImageEncoderException("Can't find palette file: %s" % pal_path)
     palf = file(pal_path, 'rb')
@@ -49,7 +53,10 @@ def getPalette(lflf_path, version):
     return pal
 
 def getSmapPath(lflf_path, version):
-    smap_path = os.path.join(lflf_path, "ROOM", "RMIM", "IM00", "SMAP.dmp")
+    if version <= 4:
+        smap_path = os.path.join(lflf_path, "RO", "BM.dmp")
+    elif version >= 5:
+        smap_path = os.path.join(lflf_path, "ROOM", "RMIM", "IM00", "SMAP.dmp")
     if not os.path.isfile(smap_path):
         raise ScummImageEncoderException("Can't find SMAP file: %s" % smap_path)
     return smap_path
@@ -328,7 +335,7 @@ def doMethodTwo(smap, img, limit, stripNum, paramSub, pal):
                         break
                 ##print "put pixel"
 
-def decodeImage(lflf_path, image_path, version=6):
+def decodeImage(lflf_path, image_path, version, palette_num):
     print "Reading dimensions from RMHD..."
     # Get dimensions from RMHD file and initialise an image container
     width, height = getDimensions(lflf_path, version)
@@ -337,7 +344,7 @@ def decodeImage(lflf_path, image_path, version=6):
 
     print "Reading palette from CLUT..."
     # Get the palette
-    pal = getPalette(lflf_path, version)
+    pal = getPalette(lflf_path, version, palette_num)
 
     # Load pixelmap data
     smap_path = getSmapPath(lflf_path, version)
@@ -360,7 +367,10 @@ def decodeImage(lflf_path, image_path, version=6):
     # For reach strip
     for stripnum, s in enumerate(stripOffsets):
         smap.seek(s, 0)
-        compID = arrayToInt(getByte(smap,0))
+        try:
+            compID = arrayToInt(getByte(smap,0))
+        except Exception, eofe:
+            break # v4, loom CD, room 2
         # Default variables (based on uncompressed settings)
         compMethod = 0 # 0 will also stand for uncompressed
         paramSub = 0

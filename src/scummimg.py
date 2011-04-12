@@ -32,18 +32,31 @@ def main():
     oparser.add_option("-e", "--encode", action="store_true",
                       dest="encode", default=False,
                       help="Encode the given PNG into a format useable by SCUMM V5/v6 games. "
-                      "You must already have an existing unpacked LFLF block, with a RMHD.xml, SMAP, and CLUT or APAL file.")
+                      "You must already have an existing unpacked LFLF block, with HD.XML/RMHD.xml, BM/SMAP, and PA/CLUT/APAL files (depending on the target SCUMM version).")
     oparser.add_option("-d", "--decode", action="store_true",
                       dest="decode", default=False,
-                      help="Decode a SCUMM V5/V6 image into a PNG file, "
-                      "from an unpacked LFLF block.")
+                      help="Decode a SCUMM image into a PNG file, "
+                      "from an unpacked LFLF block (you can unse ScummPacker to get these files).")
+    oparser.add_option("-q", "--quantize", action="store",
+                      dest="quantize", default=160, type="int",
+                      help="When encoding, reduce the palette of the input image to the specified number of colours.\n" +
+                            "Default: 160. Maximum: 256")
+    oparser.add_option("-p", "--palette_num", action="store",
+                      dest="palette_num", default=1, type="int",
+                      help="For v6, if there are multiple APAL files, use the specified APAL number.\n" +
+                            "Default: 1")
     oparser.add_option("-v", "--sversion", action="store",
                       dest="version", default=6, type="int",
-                      help="The version of SCUMM to target (5 or 6).")
+                      help="The version of SCUMM to target: 5 or 6. Default is 6.")
     
     options, args = oparser.parse_args()
     
-    if len(args) != 2 or options.version < 5 or options.version > 6:
+    if (len(args) != 2
+        or options.version < 5 # was 4, but doesn't work
+        or options.version > 6
+        or options.quantize < 1
+        or options.quantize > 256
+        or options.palette_num < 1):
         returnval = 1
         oparser.print_help()
         return returnval
@@ -52,11 +65,11 @@ def main():
     image_path = args[1]
     try:
         if options.encode:
-            encodeImage(lflf_path, image_path, options.version)
+            encodeImage(lflf_path, image_path, options.version, options.quantize, options.palette_num)
             print "Done!"
             returnval = 0
         elif options.decode:
-            decodeImage(lflf_path, image_path, options.version)
+            decodeImage(lflf_path, image_path, options.version, options.palette_num)
             print "Done!"
             returnval = 0
         else:
