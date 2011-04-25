@@ -1,3 +1,30 @@
+#! /usr/bin/python
+"""
+Use, distribution, and modification of the SCUMM Image Encoder binaries, 
+source code, or documentation, is subject to the terms of the MIT license,
+as below.
+
+Copyright (c) 2011 Laurence Dougal Myers
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+"""
+
 ##################################################################
 ####
 #### SCUMM Image Encoder
@@ -41,10 +68,14 @@ def main():
                       dest="quantize", default=160, type="int",
                       help="When encoding, reduce the palette of the input image to the specified number of colours.\n" +
                             "Default: 160. Maximum: 256")
-    oparser.add_option("-p", "--palette_num", action="store",
+    oparser.add_option("-p", "--palettenum", action="store",
                       dest="palette_num", default=1, type="int",
                       help="For v6, if there are multiple APAL files, use the specified APAL number.\n" +
                             "Default: 1")
+    oparser.add_option("-f", "--freezepalette", action="store_true",
+                      dest="freeze_palette", default=False,
+                      help="When encoding, don't modify the palette. Requires input image to already have the correct palette.\n" +
+                        "Default: False")
     oparser.add_option("-v", "--sversion", action="store",
                       dest="version", default=6, type="int",
                       help="The version of SCUMM to target: 5 or 6. Default is 6.")
@@ -65,7 +96,7 @@ def main():
     image_path = args[1]
     try:
         if options.encode:
-            encodeImage(lflf_path, image_path, options.version, options.quantize, options.palette_num)
+            encodeImage(lflf_path, image_path, options.version, options.quantize, options.palette_num, options.freeze_palette)
             print "Done!"
             returnval = 0
         elif options.decode:

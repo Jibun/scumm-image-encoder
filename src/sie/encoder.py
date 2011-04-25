@@ -2,11 +2,15 @@ import array
 import xml.etree.ElementTree as et
 import os
 import Image
+from decoder import getPalette
 from sie_util import intToBytes, getChunk, ScummImageEncoderException
 
-def testEncodeInput(source, quantization):
+def testEncodeInput(source, quantization, freeze_palette):
     if source.size[0] % 8 > 0 or source.size[1] % 8 > 0:
         raise ScummImageEncoderException("Error: Input height and/or width must be a mulitple of 8.")
+    elif freeze_palette:
+        if source.palette == None or len(source.palette.palette) != 256 * 3:
+            raise ScummImageEncoderException("Error: Input image must have 256 colour palette, if 'freeze palette' option is chosen.")
     elif source.palette == None:
         return source.quantize(quantization)
     return source
@@ -46,7 +50,7 @@ def updatePalette(lflf_path, version, source_image, quantization, palette_num):
     newclutfile.close()
 
 
-def writeSmap(lflf_path, version, source):
+def writeSmap(lflf_path, version, source, freeze_palette):
     if version <= 4:
         smap_path = os.path.join(lflf_path, "RO", "BM.dmp")
     elif version >= 5:
@@ -60,16 +64,21 @@ def writeSmap(lflf_path, version, source):
     # Write dummy header
     newsmapfile.write('00000000')
     blockStart = newsmapfile.tell()
-    numStrips = width/8
+    numStrips = width / 8
     stripsStartOffset = blockStart + (numStrips * 4) # each offset is a DWord
     currStripOffsetValue = stripsStartOffset
-    stripSize = height*8
+    stripSize = height * 8
     # Write strip offsets
     # Because we're just using uncompressed things, we can cheat and
     # predict how big a strip will be
     for _ in xrange(numStrips):
         intToBytes(currStripOffsetValue, LE=1).tofile(newsmapfile)
-        currStripOffsetValue += stripSize+1 # add one for compression ID
+        currStripOffsetValue += stripSize + 1 # add one for compression ID
+
+    if freeze_palette:
+        palette_offset = 0
+    else:
+        palette_offset = 16
 
     # Figure out why it doesn't add the last strip
     for stripNum in xrange(numStrips):
@@ -78,15 +87,15 @@ def writeSmap(lflf_path, version, source):
         for rowNum in range(height):
             for pixel in bitdata[stripNum * 8 + rowNum * width:
                                  stripNum * 8 + rowNum * width + 8]:
-                stripData.append(pixel + 16)
+                stripData.append(pixel + palette_offset)
         ##if numStrips - stripNum <= 1:
             ##print stripData
         stripData.tofile(newsmapfile)
 
     # Write the header
-    newsmapfile.seek(0,2)
+    newsmapfile.seek(0, 2)
     blocksize = newsmapfile.tell()
-    newsmapfile.seek(0,0)
+    newsmapfile.seek(0, 0)
     newsmapfile.write('SMAP')
     intToBytes(blocksize).tofile(newsmapfile)
     newsmapfile.close()
@@ -95,15 +104,15 @@ def writeSmap(lflf_path, version, source):
 # specify costumes and/or objects palette to include
 # Allow choice between room or object encoding (affects header generation)
 # Currently just replaces 160 colours
-def encodeImage(lflf_path, image_path, version, quantization, palette_num):
+def encodeImage(lflf_path, image_path, version, quantization, palette_num, freeze_palette):
     """ Convert a paletted image to a 160-colour image, generating
     appropriate header and palette files as well."""
     source_image = Image.open(image_path)
-    source_image = testEncodeInput(source_image, quantization)
+    source_image = testEncodeInput(source_image, quantization, freeze_palette)
     width, height = source_image.size
 
-    # Only fix the palette if there's more than 160 colours
-    if len(source_image.palette.palette) > quantization * 3:
+    # Only fix the palette if there's more than colours than the quantization limit.
+    if not freeze_palette and len(source_image.palette.palette) > quantization * 3:
         source_image = source_image.quantize(quantization) # This doesn't work because palette is shifted <--- what?
 
     # Have to save and re-open due to stupidity of PIL (or me)
@@ -113,11 +122,17 @@ def encodeImage(lflf_path, image_path, version, quantization, palette_num):
     # Update an existing room header
     updateRMHD(lflf_path, version, width, height)
 
-    # Write new palette (copying missing palette info from old palette)
-    updatePalette(lflf_path, version, source_image, quantization, palette_num)
+    if freeze_palette:
+        # Reload the original palette. Just in case.
+        pal = getPalette(lflf_path, version, palette_num)
+        source_image.putpalette(pal)
+    else:
+        # Write new palette (copying missing palette info from old palette)
+        updatePalette(lflf_path, version, source_image, quantization, palette_num)
+
 
     # Write the bitmap data
-    writeSmap(lflf_path, version, source_image)
+    writeSmap(lflf_path, version, source_image, freeze_palette)
 
     # Cleanup
     os.remove(os.path.join(os.getcwd(), "temp.png"))
