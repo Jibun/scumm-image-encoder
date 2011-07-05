@@ -1,6 +1,7 @@
 import array
 import xml.etree.ElementTree as et
 import os
+import struct
 import Image
 from decoder import getPalette
 from sie_util import intToBytes, getChunk, ScummImageEncoderException
@@ -100,6 +101,50 @@ def writeSmap(lflf_path, version, source, freeze_palette):
     intToBytes(blocksize).tofile(newsmapfile)
     newsmapfile.close()
 
+def updateV2HD(lflf_path, version, width, height):
+    hd_file = file(os.path.join(lflf_path, "ROv2", "HDv2"), 'wb')
+    data = struct.pack('<2H', width, height)
+    hd_file.write(data)
+    hd_file.close()
+
+def packRunInfo(run, colour, dithering, img_file):
+    pass
+
+def writeV2Bitmap(lflf_path, version, source):
+    img_file = file(os.path.join(lflf_path, "ROv2", "IMv2"))
+    width, height = source.size
+    run = 0
+    colour = None
+    b = None
+    left_b = None
+    dithering = False
+    source_data = source.getdata()
+    for x in xrange(width):
+        colour = None
+        dithering = False
+        for y in xrange(height):
+            # Get the current pixel.
+            b = source_data[y * width + x]
+            # Get the pixel to the left of the current pixel. Used for "dithering" table.
+            if x:
+                left_b = source_data[y * width + x - 1]
+            # If the current pixel is the same, or we're currently dithering and
+            # the left pixel matches this pixel, increment run counter
+            if b == colour or \
+                (dithering and left_b == b):
+                run += 1
+            # Current pixel is not the same as the last.
+            else:
+                # End the run, only if this is not the start of a column.
+                if y:
+                    packRunInfo(run, colour, dithering, img_file)
+                run = 1
+                colour = b
+
+        # TODO: End the last run encountered.
+        pass
+
+
 # TODO: allow for larger number of colours by allowing users to
 # specify costumes and/or objects palette to include
 # Allow choice between room or object encoding (affects header generation)
@@ -112,27 +157,33 @@ def encodeImage(lflf_path, image_path, version, quantization, palette_num, freez
     width, height = source_image.size
 
     # Only fix the palette if there's more than colours than the quantization limit.
-    if not freeze_palette and len(source_image.palette.palette) > quantization * 3:
+    if version > 2 and \
+        not freeze_palette and len(source_image.palette.palette) > quantization * 3:
         source_image = source_image.quantize(quantization) # This doesn't work because palette is shifted <--- what?
 
     # Have to save and re-open due to stupidity of PIL (or me)
     source_image.save('temp.png','png')
     source_image = Image.open('temp.png')
 
-    # Update an existing room header
-    updateRMHD(lflf_path, version, width, height)
 
-    if freeze_palette:
-        # Reload the original palette. Just in case.
-        pal = getPalette(lflf_path, version, palette_num)
-        source_image.putpalette(pal)
+    if version <= 2:
+        updateV2HD(lflf_path, version, width, height)
+        writeV2Bitmap(lflf_path, version, source_image)
     else:
-        # Write new palette (copying missing palette info from old palette)
-        updatePalette(lflf_path, version, source_image, quantization, palette_num)
+        # Update an existing room header
+        updateRMHD(lflf_path, version, width, height)
+
+        if freeze_palette:
+            # Reload the original palette. Just in case.
+            pal = getPalette(lflf_path, version, palette_num)
+            source_image.putpalette(pal)
+        else:
+            # Write new palette (copying missing palette info from old palette)
+            updatePalette(lflf_path, version, source_image, quantization, palette_num)
 
 
-    # Write the bitmap data
-    writeSmap(lflf_path, version, source_image, freeze_palette)
+        # Write the bitmap data
+        writeSmap(lflf_path, version, source_image, freeze_palette)
 
     # Cleanup
     os.remove(os.path.join(os.getcwd(), "temp.png"))
