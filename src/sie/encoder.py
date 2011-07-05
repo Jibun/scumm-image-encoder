@@ -107,42 +107,65 @@ def updateV2HD(lflf_path, version, width, height):
     hd_file.write(data)
     hd_file.close()
 
-def packRunInfo(run, colour, dithering, img_file):
-    pass
+def packRunInfo(run, colour, dithering):
+    #print "Writing out run info. run: %d, colour: %d, dithering: %s" % (run, colour, dithering)
+    data = None
+    if dithering:
+        if run > 0x7F:
+            data = struct.pack('2B', 0x80, run)
+        else:
+            data = struct.pack('B', 0x80 | run)
+    else:
+        if run > 0x07:
+            data = struct.pack('2B', colour, run)
+        else:
+            data = struct.pack('B', (run << 4) | colour)
+    #print "  packed data = %r" % data
+    return data
 
-def writeV2Bitmap(lflf_path, version, source):
-    img_file = file(os.path.join(lflf_path, "ROv2", "IMv2"))
+def writeV2Bitmap(lflf_path, source):
+    img_file = file(os.path.join(lflf_path, "ROv2", "IMv2"), 'wb')
     width, height = source.size
-    run = 0
-    colour = None
-    b = None
-    left_b = None
-    dithering = False
     source_data = source.getdata()
+    dither_table = [None] * 128
     for x in xrange(width):
+        run = 0
         colour = None
+        b = None
+        left_b = None
         dithering = False
+        dither_i = 0
         for y in xrange(height):
             # Get the current pixel.
             b = source_data[y * width + x]
-            # Get the pixel to the left of the current pixel. Used for "dithering" table.
-            if x:
-                left_b = source_data[y * width + x - 1]
             # If the current pixel is the same, or we're currently dithering and
-            # the left pixel matches this pixel, increment run counter
-            if b == colour or \
-                (dithering and left_b == b):
+            # the dither colour matches this pixel, increment run counter.
+            # Also need to check bounds - maximum value of a run is
+            # 0xFF.
+            if run < 0xFF and \
+               (b == colour or (dithering and b == dither_table[dither_i])):
                 run += 1
             # Current pixel is not the same as the last.
             else:
-                # End the run, only if this is not the start of a column.
-                if y:
-                    packRunInfo(run, colour, dithering, img_file)
+                # End the run, only if we have started one (e.g. the start of a column).
+                if run:
+                    data = packRunInfo(run, colour, dithering)
+                    img_file.write(data)
                 run = 1
                 colour = b
+                # If the current pixel is the same as the dither colour, engage dithering mode.
+                if b == dither_table[dither_i]:
+                    dithering = True
+                else:
+                    dithering = False
+                    dither_table[dither_i] = colour
+            dither_i += 1
 
-        # TODO: End the last run encountered.
-        pass
+        # End the last run encountered, once we reach the end of the column.
+        data = packRunInfo(run, colour, dithering)
+        img_file.write(data)
+        #if x == 10: break # for debugging.
+    img_file.close()
 
 
 # TODO: allow for larger number of colours by allowing users to
@@ -167,8 +190,11 @@ def encodeImage(lflf_path, image_path, version, quantization, palette_num, freez
 
 
     if version <= 2:
+        # Removed because my decoder outputs images with 256 colour palettes.
+#        if len(source_image.palette.palette) > 0xF * 3:
+#            raise ScummImageEncoderException("Encoding a V2 image requires a palette of 16 colours (input image uses %d colours)." % len(source_image.palette.palette) / 3)
         updateV2HD(lflf_path, version, width, height)
-        writeV2Bitmap(lflf_path, version, source_image)
+        writeV2Bitmap(lflf_path, source_image)
     else:
         # Update an existing room header
         updateRMHD(lflf_path, version, width, height)
