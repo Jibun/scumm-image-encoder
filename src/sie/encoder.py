@@ -1,6 +1,8 @@
 import array
 import xml.etree.ElementTree as et
+import logging
 import os
+import struct
 import Image
 from decoder import getPalette
 from sie_util import intToBytes, getChunk, ScummImageEncoderException
@@ -100,6 +102,93 @@ def writeSmap(lflf_path, version, source, freeze_palette):
     intToBytes(blocksize).tofile(newsmapfile)
     newsmapfile.close()
 
+def updateV2HD(lflf_path, version, width, height):
+    hd_file = file(os.path.join(lflf_path, "ROv2", "HDv2"), 'wb')
+    data = struct.pack('<2H', width, height)
+    hd_file.write(data)
+    hd_file.close()
+
+def packRunInfo(run, colour, dithering):
+    logging.debug("Writing out run info. run: %d, colour: %s, dithering: %s" % (run, colour, dithering))
+    data = None
+    if dithering:
+        if run > 0x7F:
+            data = struct.pack('2B', 0x80, run)
+        else:
+            data = struct.pack('B', 0x80 | run)
+    else:
+        if run > 0x07:
+            data = struct.pack('2B', colour, run)
+        else:
+            data = struct.pack('B', (run << 4) | colour)
+    logging.debug("  packed data = %r" % data)
+    return data
+
+def writeV2Bitmap(lflf_path, source):
+    img_file = file(os.path.join(lflf_path, "ROv2", "IMv2"), 'wb')
+    width, height = source.size
+    source_data = source.getdata()
+    dither_table = [None] * 128
+    for x in xrange(width):
+    #for x in xrange(47, 49):
+        run = 0
+        colour = None
+        b = None
+        left_b = None
+        dithering = False
+        dither_i = 0
+        logging.debug("Column: %d" % x)
+        logging.debug("Dither table: %s" % dither_table)
+        for y in xrange(height):
+            # Get the current pixel.
+            b = source_data[y * width + x]
+            # Check if we can dither. (The original encoder seems to favour dithering over efficient compression.
+            #  It will revert to dithering even if it interrupts a continuous run of colour.)
+#            if b == dither_table[dither_i] and not dithering:
+#                if run:
+#                    data = packRunInfo(run, colour, dithering)
+#                    img_file.write(data)
+#                dithering = True
+#                run = 1
+#                colour = None
+            # If the current pixel is the same, or we're currently dithering and
+            # the dither colour matches this pixel, increment run counter.
+            # Also need to check bounds - maximum value of a run is
+            # 0xFF.
+#            elif
+            if run < 0xFF and \
+               (b == colour or (dithering and b == dither_table[dither_i])):
+                run += 1
+                if not dithering:
+                    dither_table[dither_i] = colour
+            # Current pixel is not the same as the last.
+            else:
+                logging.debug("Ending run. b: %d. dither_table value: %s" % (b, dither_table[dither_i]))
+                # End the run, only if we have started one (e.g. the start of a column).
+                if run:
+                    data = packRunInfo(run, colour, dithering)
+                    img_file.write(data)
+                # Start a new run.
+                run = 1
+                # If the current pixel is the same as the dither colour, engage dithering mode.
+                if b == dither_table[dither_i]:
+                    dithering = True
+                    colour = None
+                else:
+                    dithering = False
+                    colour = b
+                    dither_table[dither_i] = colour
+                logging.debug("Start of new run. colour: %s, dithering: %s" % (colour, dithering))
+            dither_i += 1
+
+        # End the last run encountered, once we reach the end of the column.
+        data = packRunInfo(run, colour, dithering)
+        img_file.write(data)
+        logging.debug("---")
+        #if x == 10: break # for debugging.
+    img_file.close()
+
+
 # TODO: allow for larger number of colours by allowing users to
 # specify costumes and/or objects palette to include
 # Allow choice between room or object encoding (affects header generation)
@@ -112,27 +201,36 @@ def encodeImage(lflf_path, image_path, version, quantization, palette_num, freez
     width, height = source_image.size
 
     # Only fix the palette if there's more than colours than the quantization limit.
-    if not freeze_palette and len(source_image.palette.palette) > quantization * 3:
+    if version > 2 and \
+        not freeze_palette and len(source_image.palette.palette) > quantization * 3:
         source_image = source_image.quantize(quantization) # This doesn't work because palette is shifted <--- what?
 
     # Have to save and re-open due to stupidity of PIL (or me)
     source_image.save('temp.png','png')
     source_image = Image.open('temp.png')
 
-    # Update an existing room header
-    updateRMHD(lflf_path, version, width, height)
 
-    if freeze_palette:
-        # Reload the original palette. Just in case.
-        pal = getPalette(lflf_path, version, palette_num)
-        source_image.putpalette(pal)
+    if version <= 2:
+        # Removed because my decoder outputs images with 256 colour palettes.
+#        if len(source_image.palette.palette) > 0xF * 3:
+#            raise ScummImageEncoderException("Encoding a V2 image requires a palette of 16 colours (input image uses %d colours)." % len(source_image.palette.palette) / 3)
+        updateV2HD(lflf_path, version, width, height)
+        writeV2Bitmap(lflf_path, source_image)
     else:
-        # Write new palette (copying missing palette info from old palette)
-        updatePalette(lflf_path, version, source_image, quantization, palette_num)
+        # Update an existing room header
+        updateRMHD(lflf_path, version, width, height)
+
+        if freeze_palette:
+            # Reload the original palette. Just in case.
+            pal = getPalette(lflf_path, version, palette_num)
+            source_image.putpalette(pal)
+        else:
+            # Write new palette (copying missing palette info from old palette)
+            updatePalette(lflf_path, version, source_image, quantization, palette_num)
 
 
-    # Write the bitmap data
-    writeSmap(lflf_path, version, source_image, freeze_palette)
+        # Write the bitmap data
+        writeSmap(lflf_path, version, source_image, freeze_palette)
 
     # Cleanup
     os.remove(os.path.join(os.getcwd(), "temp.png"))
