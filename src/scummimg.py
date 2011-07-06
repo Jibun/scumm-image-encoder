@@ -45,6 +45,7 @@ THE SOFTWARE.
 #### Rename "INCPAL4" etc constants to what they actually are
 ####
 ##################################################################
+import logging
 import sys
 import traceback
 from optparse import OptionParser
@@ -52,7 +53,13 @@ from optparse import OptionParser
 from sie.decoder import *
 from sie.encoder import *
 
+def configure_logging():
+    logging.basicConfig(format="", level=logging.DEBUG,
+                        filename='scummimg.log',
+                        filemode='w')
+
 def main():
+    configure_logging()
     oparser = OptionParser(usage="%prog [options] lflf_path imagefile.png",
                       version="scumm image encoder v2 r1")
     

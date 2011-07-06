@@ -113,14 +113,15 @@ def decodeV2Bitmap(smap, img, width, height):
     dither_table = [0] * 128 # (same value as the height of backgrounds...)
     dither_table_i = 0
     for x in xrange(width):
-        #print "column: %d" % x
-        #print "smap tell: %d" % smap.tell()
+    #for x in xrange(47, 49):
+        print "column: %d" % x
+        print "smap tell: %d" % smap.tell()
         dither_table_i = 0
         for y in xrange(height):
             run -= 1
             if run == 0:
                 data, = struct.unpack('B', smap.read(1))
-                #print "data: %d" % data
+                print "data: %d" % data
                 if data & 0x80:
                     run = data & 0x7F
                     dither = True
@@ -129,15 +130,17 @@ def decodeV2Bitmap(smap, img, width, height):
                     dither = False
                 if run == 0:
                     run, = struct.unpack('B', smap.read(1))
-                #print "run: %d" % run
+                print "run: %d" % run
                 colour = data & 0x0F
-                #print "colour: %d" % colour
-                #print "dither: %s\n" % dither
+                if dither:
+                    print "dither: %s\n" % dither
+                else:
+                    print "colour: %d\n" % colour
             if not dither:
                 dither_table[dither_table_i] = colour
             img.img[y * width + x] = dither_table[dither_table_i]
             dither_table_i += 1
-        #print "---"
+        print "---"
         #if x == 10: break # for debugging.
 
 

@@ -1,5 +1,6 @@
 import array
 import xml.etree.ElementTree as et
+import logging
 import os
 import struct
 import Image
@@ -108,7 +109,7 @@ def updateV2HD(lflf_path, version, width, height):
     hd_file.close()
 
 def packRunInfo(run, colour, dithering):
-    #print "Writing out run info. run: %d, colour: %d, dithering: %s" % (run, colour, dithering)
+    logging.debug("Writing out run info. run: %d, colour: %s, dithering: %s" % (run, colour, dithering))
     data = None
     if dithering:
         if run > 0x7F:
@@ -120,7 +121,7 @@ def packRunInfo(run, colour, dithering):
             data = struct.pack('2B', colour, run)
         else:
             data = struct.pack('B', (run << 4) | colour)
-    #print "  packed data = %r" % data
+    logging.debug("  packed data = %r" % data)
     return data
 
 def writeV2Bitmap(lflf_path, source):
@@ -129,41 +130,61 @@ def writeV2Bitmap(lflf_path, source):
     source_data = source.getdata()
     dither_table = [None] * 128
     for x in xrange(width):
+    #for x in xrange(47, 49):
         run = 0
         colour = None
         b = None
         left_b = None
         dithering = False
         dither_i = 0
+        logging.debug("Column: %d" % x)
+        logging.debug("Dither table: %s" % dither_table)
         for y in xrange(height):
             # Get the current pixel.
             b = source_data[y * width + x]
+            # Check if we can dither. (The original encoder seems to favour dithering over efficient compression.
+            #  It will revert to dithering even if it interrupts a continuous run of colour.)
+#            if b == dither_table[dither_i] and not dithering:
+#                if run:
+#                    data = packRunInfo(run, colour, dithering)
+#                    img_file.write(data)
+#                dithering = True
+#                run = 1
+#                colour = None
             # If the current pixel is the same, or we're currently dithering and
             # the dither colour matches this pixel, increment run counter.
             # Also need to check bounds - maximum value of a run is
             # 0xFF.
+#            elif
             if run < 0xFF and \
                (b == colour or (dithering and b == dither_table[dither_i])):
                 run += 1
+                if not dithering:
+                    dither_table[dither_i] = colour
             # Current pixel is not the same as the last.
             else:
+                logging.debug("Ending run. b: %d. dither_table value: %s" % (b, dither_table[dither_i]))
                 # End the run, only if we have started one (e.g. the start of a column).
                 if run:
                     data = packRunInfo(run, colour, dithering)
                     img_file.write(data)
+                # Start a new run.
                 run = 1
-                colour = b
                 # If the current pixel is the same as the dither colour, engage dithering mode.
                 if b == dither_table[dither_i]:
                     dithering = True
+                    colour = None
                 else:
                     dithering = False
+                    colour = b
                     dither_table[dither_i] = colour
+                logging.debug("Start of new run. colour: %s, dithering: %s" % (colour, dithering))
             dither_i += 1
 
         # End the last run encountered, once we reach the end of the column.
         data = packRunInfo(run, colour, dithering)
         img_file.write(data)
+        logging.debug("---")
         #if x == 10: break # for debugging.
     img_file.close()
 
