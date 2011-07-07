@@ -129,34 +129,38 @@ def writeV2Bitmap(lflf_path, source):
     width, height = source.size
     source_data = source.getdata()
     dither_table = [None] * 128
+    run = 0
+    colour = None
+    b = None
+    dithering = False
     for x in xrange(width):
-    #for x in xrange(47, 49):
-        run = 0
-        colour = None
-        b = None
-        left_b = None
-        dithering = False
         dither_i = 0
         logging.debug("Column: %d" % x)
+
+        # Original encoded images seem to reset the dither table every 8th column.
+        # Presumably to aid in drawing "strips", which are 8 pixels wide.
+        if not x % 8:
+            dither_table = [None] * 128
+
         logging.debug("Dither table: %s" % dither_table)
+
         for y in xrange(height):
             # Get the current pixel.
             b = source_data[y * width + x]
-            # Check if we can dither. (The original encoder seems to favour dithering over efficient compression.
+            # Check if we can dither. (The original encoder seems to favour dithering over efficient run compression.
             #  It will revert to dithering even if it interrupts a continuous run of colour.)
-#            if b == dither_table[dither_i] and not dithering:
-#                if run:
-#                    data = packRunInfo(run, colour, dithering)
-#                    img_file.write(data)
-#                dithering = True
-#                run = 1
-#                colour = None
+            if not dithering and b == dither_table[dither_i]:
+                if run:
+                    data = packRunInfo(run, colour, dithering)
+                    img_file.write(data)
+                dithering = True
+                run = 1
+                colour = None
             # If the current pixel is the same, or we're currently dithering and
             # the dither colour matches this pixel, increment run counter.
             # Also need to check bounds - maximum value of a run is
             # 0xFF.
-#            elif
-            if run < 0xFF and \
+            elif run < 0xFF and \
                (b == colour or (dithering and b == dither_table[dither_i])):
                 run += 1
                 if not dithering:
@@ -181,11 +185,11 @@ def writeV2Bitmap(lflf_path, source):
                 logging.debug("Start of new run. colour: %s, dithering: %s" % (colour, dithering))
             dither_i += 1
 
-        # End the last run encountered, once we reach the end of the column.
-        data = packRunInfo(run, colour, dithering)
-        img_file.write(data)
         logging.debug("---")
-        #if x == 10: break # for debugging.
+
+    # End the last run encountered, once we reach the end of the file.
+    data = packRunInfo(run, colour, dithering)
+    img_file.write(data)
     img_file.close()
 
 

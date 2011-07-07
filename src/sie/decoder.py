@@ -1,4 +1,5 @@
 import xml.etree.ElementTree as et
+import logging
 import os
 import struct
 import sys
@@ -114,14 +115,14 @@ def decodeV2Bitmap(smap, img, width, height):
     dither_table_i = 0
     for x in xrange(width):
     #for x in xrange(47, 49):
-        print "column: %d" % x
-        print "smap tell: %d" % smap.tell()
+        logging.debug("column: %d" % x)
+        logging.debug("smap tell: %d" % smap.tell())
+        logging.debug("Dither table: %s" % dither_table)
         dither_table_i = 0
         for y in xrange(height):
             run -= 1
             if run == 0:
                 data, = struct.unpack('B', smap.read(1))
-                print "data: %d" % data
                 if data & 0x80:
                     run = data & 0x7F
                     dither = True
@@ -130,17 +131,13 @@ def decodeV2Bitmap(smap, img, width, height):
                     dither = False
                 if run == 0:
                     run, = struct.unpack('B', smap.read(1))
-                print "run: %d" % run
                 colour = data & 0x0F
-                if dither:
-                    print "dither: %s\n" % dither
-                else:
-                    print "colour: %d\n" % colour
+                logging.debug("data1: %d. run: %d. dither: %s. colour: %d" % (data, run, dither, colour))
             if not dither:
                 dither_table[dither_table_i] = colour
             img.img[y * width + x] = dither_table[dither_table_i]
             dither_table_i += 1
-        print "---"
+        logging.debug("---")
         #if x == 10: break # for debugging.
 
 
