@@ -61,7 +61,7 @@ def configure_logging():
 def main():
     configure_logging()
     oparser = OptionParser(usage="%prog [options] lflf_path imagefile.png",
-                      version="scumm image encoder v2 r1")
+                      version="scumm image encoder v2 r2 beta 1")
     
     oparser.add_option("-e", "--encode", action="store_true",
                       dest="encode", default=False,
