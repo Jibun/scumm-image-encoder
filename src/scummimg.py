@@ -54,7 +54,7 @@ from sie.decoder import *
 from sie.encoder import *
 
 def configure_logging():
-    logging.basicConfig(format="", level=logging.DEBUG,
+    logging.basicConfig(format="", level=logging.INFO,
                         filename='scummimg.log',
                         filemode='w')
 
@@ -85,12 +85,13 @@ def main():
                         "Default: False")
     oparser.add_option("-v", "--sversion", action="store",
                       dest="version", default=6, type="int",
-                      help="The version of SCUMM to target: 2, 5 or 6. Default is 6.")
+                      help="The version of SCUMM to target: 1, 2, 5 or 6. Default is 6.")
     
     options, args = oparser.parse_args()
     
     if (len(args) != 2
         or options.version < 1
+        or (options.version > 2 and options.version < 5)
         or options.version > 6
         or options.quantize < 1
         or options.quantize > 256
