@@ -54,7 +54,7 @@ from sie.decoder import *
 from sie.encoder import *
 
 def configure_logging():
-    logging.basicConfig(format="", level=logging.INFO,
+    logging.basicConfig(format="", level=logging.DEBUG,
                         filename='scummimg.log',
                         filemode='w')
 

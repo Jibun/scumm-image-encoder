@@ -1,4 +1,5 @@
 import array
+from collections import defaultdict
 import xml.etree.ElementTree as et
 import logging
 import os
@@ -108,7 +109,7 @@ def updateV2HD(lflf_path, version, width, height):
     hd_file.write(data)
     hd_file.close()
 
-def packRunInfo(run, colour, dithering):
+def packRunInfoV2(run, colour, dithering):
     logging.debug("Writing out run info. run: %d, colour: %s, dithering: %s" % (run, colour, dithering))
     data = None
     if dithering:
@@ -151,7 +152,7 @@ def writeV2Bitmap(lflf_path, source):
             #  It will revert to dithering even if it interrupts a continuous run of colour.)
             if not dithering and b == dither_table[dither_i]:
                 if run:
-                    data = packRunInfo(run, colour, dithering)
+                    data = packRunInfoV2(run, colour, dithering)
                     img_file.write(data)
                 dithering = True
                 run = 1
@@ -170,7 +171,7 @@ def writeV2Bitmap(lflf_path, source):
                 logging.debug("Ending run. b: %d. dither_table value: %s" % (b, dither_table[dither_i]))
                 # End the run, only if we have started one (e.g. the start of a column).
                 if run:
-                    data = packRunInfo(run, colour, dithering)
+                    data = packRunInfoV2(run, colour, dithering)
                     img_file.write(data)
                 # Start a new run.
                 run = 1
@@ -188,9 +189,124 @@ def writeV2Bitmap(lflf_path, source):
         logging.debug("---")
 
     # End the last run encountered, once we reach the end of the file.
-    data = packRunInfo(run, colour, dithering)
+    data = packRunInfoV2(run, colour, dithering)
     img_file.write(data)
     img_file.close()
+
+def compressRLEV1(data):
+    pass
+
+def getCommonColoursV1(source):
+    """
+    Rather than get the 3 most common colours across the whole image, we want
+    to get the most common colours across each 8x8 block.
+    """
+    width, height = source.size
+    source_data = source.getdata()
+    num_strips = width / 8
+    num_blocks = height / 8
+
+    dstPitch = width
+    colour_freqs = defaultdict(lambda: 0)
+    for strip_i in xrange(num_strips):
+        col_start = strip_i * 8
+        for block_i in xrange(num_blocks):
+            block_colours = set()
+            for row in xrange(8):
+                row_start = col_start + ((block_i * 8 + row) * dstPitch)
+                for col in xrange(0, 8, 2):
+                    val = source_data[row_start + col]
+                    block_colours.add(val)
+            for bc in block_colours:
+                colour_freqs[bc] += 1
+    logging.debug(colour_freqs)
+    colour_freqs_sorted = sorted(colour_freqs.items(), cmp=lambda x,y: cmp(x[1], y[1]))
+    return [c for c, f in colour_freqs_sorted[-3:]]
+
+def writeV1Bitmap(lflf_path, source):
+    """
+    Encoding:
+    - Store 8 pixels in 1 byte (2 bits per colour, 4 colours per row, each colour output twice).
+    - Store that value in charMap
+    - Add the charMap index to picMap
+    - Add the block's custom colour to colourMap
+    When done, run RLE over each map.
+    """
+    commonColours = array.array('B') # BCv1 - always 4 bytes
+    charMap = array.array('B') # B1v1 - always 2048 bytes
+    picMap = array.array('B') # B2v1
+    colourMap = array.array('B') # B3v1
+    width, height = source.size
+    source_data = source.getdata()
+
+    if width % 8 or height % 8:
+        raise ScummImageEncoderException("Input image must have dimensions divisible by 8. (Input dimentsions: %dx%d)" % (width, height))
+    num_strips = width / 8
+    num_blocks = height / 8
+
+    # Get the three most used colours. The fourth colour is determined per block.
+    #logging.debug(source.getcolors())
+    #logging.debug(sorted(source.getcolors()))
+    #common_colours = [clr for freq, clr in sorted(source.getcolors())[-3:]]
+    common_colours = getCommonColoursV1(source)
+    logging.debug("Common colours: %s" % common_colours)
+    colours_used = []
+
+    dstPitch = width
+    for strip_i in xrange(num_strips):
+        col_start = strip_i * 8
+        for block_i in xrange(num_blocks):
+            custom_colour = None
+            row_char_idx = len(charMap) # Need to store the index of the charMap entry that starts the row.
+            for row in xrange(8):
+                row_start = col_start + ((block_i * 8 + row) * dstPitch)
+                row_data = 0
+                for col in xrange(0, 8, 2):
+                    val1 = source_data[row_start + col]
+                    val2 = source_data[row_start + col + 1] # only used for validation
+                    if val1 != val2:
+                        raise ScummImageEncoderException("V1 images can only have one colour per every two pixels on the x axis. " +
+                        "Offending pixel at (%d, %d)" % ((row_start + col + 1) % width, (row_start + col + 1) / width))
+
+                    # Convert from the source colour table index, to an index in our 4-value colour array.
+                    if val1 in common_colours:
+                        colour = common_colours.index(val1)
+                    else:
+                        if custom_colour is None:
+                            custom_colour = val1
+                        if custom_colour == val1:
+                            colour = 3
+                        else:
+                            logging.error("Too many colours. Common: %s, custom: %s, offending: %s" % (common_colours, custom_colour, val1))
+                            raise ScummImageEncoderException("Image has too many colours in a block - max of 4 colours allowed " +
+                                                             "(3 common colours and 1 custom colour for the block).  " +
+                            "Offending pixel at (%d, %d)" % ((row_start + col) % width, (row_start + col) / width))
+
+                    # Compress 4 pixels to 1 byte
+                    colour &= 3
+                    row_data |= colour << 6 - col
+                # end col
+            # end row
+            charMap.append(row_data)
+        # end block
+        picMap.append(row_char_idx / 8)
+        if custom_colour is None:
+            custom_colour = 0
+        colourMap.append(custom_colour)
+    # end strip
+
+    # Output all files - run RLE on them.
+    charFile = file(os.path.join(lflf_path, 'charMap'), 'wb')
+    charMap.tofile(charFile)
+    charFile.close()
+    picFile = file(os.path.join(lflf_path, 'picMap'), 'wb')
+    picMap.tofile(picFile)
+    charFile.close()
+    colourFile = file(os.path.join(lflf_path, 'colourMap'), 'wb')
+    colourMap.tofile(colourFile)
+    colourFile.close()
+
+                
 
 
 # TODO: allow for larger number of colours by allowing users to
@@ -213,8 +329,10 @@ def encodeImage(lflf_path, image_path, version, quantization, palette_num, freez
     source_image.save('temp.png','png')
     source_image = Image.open('temp.png')
 
-
-    if version <= 2:
+    if version == 1:
+        # TODO: update V1HD
+        writeV1Bitmap(lflf_path, source_image)
+    elif version <= 2:
         # Removed because my decoder outputs images with 256 colour palettes.
 #        if len(source_image.palette.palette) > 0xF * 3:
 #            raise ScummImageEncoderException("Encoding a V2 image requires a palette of 16 colours (input image uses %d colours)." % len(source_image.palette.palette) / 3)
