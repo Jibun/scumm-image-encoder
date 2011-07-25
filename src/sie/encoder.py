@@ -251,13 +251,14 @@ def writeV1Bitmap(lflf_path, source):
     common_colours = getCommonColoursV1(source)
     logging.debug("Common colours: %s" % common_colours)
     colours_used = []
+    block_map = {} # map block CRCs to indices into the picMap
 
     dstPitch = width
     for strip_i in xrange(num_strips):
         col_start = strip_i * 8
         for block_i in xrange(num_blocks):
+            block_data = []
             custom_colour = None
-            row_char_idx = len(charMap) # Need to store the index of the charMap entry that starts the row.
             for row in xrange(8):
                 row_start = col_start + ((block_i * 8 + row) * dstPitch)
                 row_data = 0
@@ -285,17 +286,41 @@ def writeV1Bitmap(lflf_path, source):
                     # Compress 4 pixels to 1 byte
                     colour &= 3
                     row_data |= colour << 6 - col
-                # end col
-            # end row
-            charMap.append(row_data)
-        # end block
-        picMap.append(row_char_idx / 8)
-        if custom_colour is None:
-            custom_colour = 0
-        colourMap.append(custom_colour)
-    # end strip
+                    # end col
+                block_data.append(row_data)
+                # end row
+            # If this 8x8 block has been used before in the image, re-use that block's index.
+            # Otherwise, output the new data to the charMap, and store the hash of the block
+            #  in a lookup table, so we can test if future blocks can re-use the same character data.
+            block_key = tuple(block_data) # block data is going to be, at most, 8 bytes, so not too inefficient.
+            if block_key in block_map:
+                picMap.append(block_map[block_key])
+            else:
+                row_char_idx = len(charMap) / 8 # Need to store the index of the charMap entry that starts the row.
+                print row_char_idx
+                for r in block_data:
+                    charMap.append(r)
+                picMap.append(row_char_idx)
+                block_map[block_key] = row_char_idx
+            if custom_colour is None:
+                custom_colour = 0
+            colourMap.append(custom_colour)
+            # end block
+        # end strip
 
-    # Output all files - run RLE on them.
+    # If the charMap is too small, pad it out. Not sure why my encoded images use less chars.
+    while len(charMap) < 2048:
+        charMap.append(0)
+
+    # If picMap or colourMap is not the size of the image (divided into 8x8 blocks),
+    #  there's something wrong with my code.
+    if len(picMap) != num_strips * num_blocks or \
+        len(colourMap) != num_strips * num_blocks:
+        raise ScummImageEncoderException("I don't seem to have generated enough entries in either the picMap or colourMap. " +
+            "Expected entries: %d. picMap entries: %d. colourMap entries: %d." % (num_strips * num_blocks, len(picMap), len(colourMap)))
+
+    # Output all files.
+    # TODO: run RLE on them.
     charFile = file(os.path.join(lflf_path, 'charMap'), 'wb')
     charMap.tofile(charFile)
     charFile.close()

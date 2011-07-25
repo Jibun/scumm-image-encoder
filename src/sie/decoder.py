@@ -158,14 +158,33 @@ def decodeV1Bitmap(lflf_path, img, width, height):
     coloursFile.close()
 
     charFile = file(os.path.join(lflf_path, 'ROv1', 'B1v1'), 'rb')
-    charMap = decodeC64Gfx(charFile, img, 2048)
+    charMap = array.array('B')
+    charMap.fromstring(charFile.read())
+    #charMap = decodeC64Gfx(charFile, img, 2048)
     charFile.close()
     picFile = file(os.path.join(lflf_path, 'ROv1', 'B2v1'), 'rb')
-    picMap = decodeC64Gfx(picFile, img, width * height)
+    picMap = array.array('B')
+    picMap.fromstring(picFile.read())
+    #picMap = decodeC64Gfx(picFile, img, width * height)
     picFile.close()
     colourFile = file(os.path.join(lflf_path, 'ROv1', 'B3v1'), 'rb')
-    colourMap = decodeC64Gfx(colourFile, img, width * height)
+    colourMap = array.array('B')
+    colourMap.fromstring(colourFile.read())
+    #colourMap = decodeC64Gfx(colourFile, img, width * height)
     colourFile.close()
+
+    # Dump un-RLEed files
+    if True:
+        charFile = file(os.path.join(lflf_path, 'charMap'), 'wb')
+        charMap.tofile(charFile)
+        charFile.close()
+        picFile = file(os.path.join(lflf_path, 'picMap'), 'wb')
+        picMap.tofile(picFile)
+        picFile.close()
+        colourFile = file(os.path.join(lflf_path, 'colourMap'), 'wb')
+        colourMap.tofile(colourFile)
+        colourFile.close()
+
 
     charIdx = None
     img_data = array.array('B', [0] * ((width * 8) * (height * 8)))
