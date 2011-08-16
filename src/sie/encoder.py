@@ -5,7 +5,7 @@ import logging
 import os
 import struct
 import Image
-from decoder import getPalette
+#from decoder import getPalette
 from sie_util import intToBytes, getChunk, ScummImageEncoderException
 
 def testEncodeInput(source, quantization, freeze_palette):
@@ -369,8 +369,9 @@ def encodeImage(lflf_path, image_path, version, quantization, palette_num, freez
 
         if freeze_palette:
             # Reload the original palette. Just in case.
-            pal = getPalette(lflf_path, version, palette_num)
-            source_image.putpalette(pal)
+            #pal = getPalette(lflf_path, version, palette_num)
+            #source_image.putpalette(pal)
+            pass
         else:
             # Write new palette (copying missing palette info from old palette)
             updatePalette(lflf_path, version, source_image, quantization, palette_num)

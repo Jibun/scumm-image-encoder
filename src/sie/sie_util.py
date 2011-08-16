@@ -1,11 +1,21 @@
 import array
+import logging
 
 decryptvalue = 0x69
+
+def deprecated(func):
+    # Could also maybe keep a track of all called functions,
+    #  and only print a message the first time a function is called.
+    def inner_func(self, *args, **kwds):
+        logging.warning("Call to %s is deprecated." % func.func_name)
+        func(self, *args, **kwds)
+    return inner_func
 
 class ScummImageEncoderException(Exception):
     pass
 
-class ImageContainer:
+class ImageContainer(object):
+    @deprecated
     def __init__(self, width, height):
         """ Container for an image array, with dimensions metadata."""
         self.width = width
@@ -18,7 +28,8 @@ class ImageContainer:
         self.img = array.array('B', [0] * (width * height))
         ##[self.img.append(0) for dummyvar in range(width*height+width)]
 
-
+def initBitmapData(width, height):
+    return array.array('B', [0] * (width * height))
 
 def indent_elementtree(elem, level=0):
     """ This function taken from http://effbot.org/zone/element-lib.htm#prettyprint.
@@ -186,5 +197,3 @@ def strToArray(input):
     output = array.array('B')
     output.fromstring(input)
     return output
-
-#---- End basic data manipulation
