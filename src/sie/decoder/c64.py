@@ -1,12 +1,12 @@
 import array
 import os
 import struct
-from sie.sie_util import ImageContainer, ScummImageEncoderException
+from sie.sie_util import ScummImageEncoderException
 
 DEBUG_DUMP = False
 
 def decodeV1Object(lflf_path, charMap, colours):
-    img = ImageContainer(width, height)
+    pass
 
 def decodeV1Bitmap(lflf_path, width, height):
     """
