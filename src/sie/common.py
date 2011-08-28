@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as et
 import os
 import struct
-from sie_util import ScummImageEncoderException
+from sie_util import ScummImageEncoderException, makeDirs
 
 class ImageCodecBase(object):
     PATH_MUST_EXIST = True
@@ -11,18 +11,21 @@ class ImageCodecBase(object):
         self.config = config # a dictionary containing class-specific configuration, e.g. SMAP paths.
 
     def getHeaderPath(self, lflf_path):
+        """ Can return None, if path defined in config is None."""
         header_path = self.config.header_path
         if header_path is None:
             return None
         return os.path.join(lflf_path, *header_path)
 
     def getExistingHeaderPath(self, lflf_path):
+        """ Can return None, if path defined in config is None."""
         header_path = self.getHeaderPath(lflf_path)
-        if not os.path.exists(header_path):
+        if header_path and not os.path.exists(header_path):
             raise ScummImageEncoderException("Can't find header file or path: %s" % header_path)
         return header_path
 
     def getPalettePath(self, lflf_path, palette_num):
+        """ Can return None, if path defined in config is None."""
         palette_path = self.config.palette_path
         if palette_path is None:
             return None
@@ -30,20 +33,28 @@ class ImageCodecBase(object):
         return palette_path.replace("%p", str(palette_num).zfill(3)) # bit of a hack for V6 palettes
 
     def getExistingPalettePath(self, lflf_path, palette_num):
+        """ Can return None, if path defined in config is None."""
         palette_path = self.getPalettePath(lflf_path, palette_num)
-        if not os.path.exists(palette_path):
+        if palette_path and not os.path.exists(palette_path):
             raise ScummImageEncoderException("Can't find palette file or path: %s" % palette_path)
         return palette_path
 
     def getBitmapPath(self, lflf_path):
+        """ Can return None, if path defined in config is None."""
         bitmap_path = self.config.bitmap_path
         if bitmap_path is None:
             return None
         return os.path.join(lflf_path, *bitmap_path)
 
+    def getNewBitmapPath(self, lflf_path):
+        """ Can return None, if path defined in config is None."""
+        bitmap_path = self.getBitmapPath(lflf_path)
+        makeDirs(bitmap_path)
+        return bitmap_path
+
     def getExistingBitmapPath(self, lflf_path):
         bitmap_path = self.getBitmapPath(lflf_path)
-        if not os.path.exists(bitmap_path):
+        if bitmap_path and not os.path.exists(bitmap_path):
             raise ScummImageEncoderException("Can't find bitmap file or path: %s" % bitmap_path)
         return bitmap_path
 

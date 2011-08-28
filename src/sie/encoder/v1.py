@@ -2,7 +2,7 @@ import array
 from collections import defaultdict
 import logging
 import os
-from sie.sie_util import ScummImageEncoderException
+from sie.sie_util import ScummImageEncoderException, makeDirs
 import common
 
 class EncoderV1(common.ImageEncoderBase):
@@ -37,7 +37,7 @@ class EncoderV1(common.ImageEncoderBase):
         colour_freqs_sorted = sorted(colour_freqs.items(), cmp=lambda x,y: cmp(x[1], y[1]))
         return [c for c, f in colour_freqs_sorted[-3:]]
 
-    def writeV1Bitmap(self, lflf_path, source):
+    def writeBitmap(self, lflf_path, source_image, width, height, compression_method, freeze_palette, quantization):
         """
         Encoding:
         - Store 8 pixels in 1 byte (2 bits per colour, 4 colours per row, each colour output twice).
@@ -50,8 +50,7 @@ class EncoderV1(common.ImageEncoderBase):
         charMap = array.array('B') # B1v1 - always 2048 bytes
         picMap = array.array('B') # B2v1
         colourMap = array.array('B') # B3v1
-        width, height = source.size
-        source_data = source.getdata()
+        source_data = source_image.getdata()
 
         if width % 8 or height % 8:
             raise ScummImageEncoderException("Input image must have dimensions divisible by 8. (Input dimentsions: %dx%d)" % (width, height))
@@ -62,7 +61,7 @@ class EncoderV1(common.ImageEncoderBase):
         #logging.debug(source.getcolors())
         #logging.debug(sorted(source.getcolors()))
         #common_colours = [clr for freq, clr in sorted(source.getcolors())[-3:]]
-        common_colours = self.getCommonColoursV1(source)
+        common_colours = self.getCommonColoursV1(source_image)
         logging.debug("Common colours: %s" % common_colours)
         colours_used = []
         block_map = {} # map block CRCs to indices into the picMap
@@ -135,12 +134,20 @@ class EncoderV1(common.ImageEncoderBase):
 
         # Output all files.
         # TODO: run RLE on them.
-        charFile = file(os.path.join(lflf_path, 'charMap'), 'wb')
+        out_path = os.path.join(lflf_path, 'charMap')
+        makeDirs(out_path)
+        charFile = file(out_path, 'wb')
         charMap.tofile(charFile)
         charFile.close()
-        picFile = file(os.path.join(lflf_path, 'picMap'), 'wb')
+
+        out_path = os.path.join(lflf_path, 'picMap')
+        makeDirs(out_path)
+        picFile = file(out_path, 'wb')
         picMap.tofile(picFile)
         charFile.close()
-        colourFile = file(os.path.join(lflf_path, 'colourMap'), 'wb')
+
+        out_path = os.path.join(lflf_path, 'colourMap')
+        makeDirs(out_path)
+        colourFile = file(out_path, 'wb')
         colourMap.tofile(colourFile)
         colourFile.close()

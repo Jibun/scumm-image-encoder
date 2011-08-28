@@ -1,32 +1,17 @@
 import array
 import logging
+import os
 
 decryptvalue = 0x69
-
-def deprecated(func):
-    # Could also maybe keep a track of all called functions,
-    #  and only print a message the first time a function is called.
-    def inner_func(self, *args, **kwds):
-        logging.warning("Call to %s is deprecated." % func.func_name)
-        func(self, *args, **kwds)
-    return inner_func
 
 class ScummImageEncoderException(Exception):
     pass
 
-class ImageContainer(object):
-    @deprecated
-    def __init__(self, width, height):
-        """ Container for an image array, with dimensions metadata."""
-        self.width = width
-        self.height = height
-        # Initialise the img array to the given dimensions
-        # Should probably use a 2D array from numarray, but when I tried that
-        # it was slower initialising and it didn't work properly.
-        # Need to add an extra row for padding (should be ignored when writing
-        # to a file anyway)
-        self.img = array.array('B', [0] * (width * height))
-        ##[self.img.append(0) for dummyvar in range(width*height+width)]
+def makeDirs(file_path):
+    if file_path and not os.path.exists(file_path):
+        dir_path = os.path.dirname(file_path)
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
 
 def initBitmapData(width, height):
     return array.array('B', [0] * (width * height))

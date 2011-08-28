@@ -10,6 +10,18 @@ tableV1Palette = [
 ]
 
 class DecoderV1(common.ImageDecoderBase):
+    def decodeImage(self, lflf_path, image_path, palette_num):
+        """ V1 background images share "character map" data with the objects, so decode all objects as well."""
+        width, height = self.readDimensions(lflf_path)
+        pal_data = self.readPalette(lflf_path, palette_num)
+        bitmap_path = self.getExistingBitmapPath(lflf_path)
+        bmp_data = self.readBitmap(lflf_path, bitmap_path, width, height, pal_data)
+        self.saveImage(image_path, width, height, bmp_data, pal_data)
+        self.readAndSaveObjectImages(lflf_path, bitmap_path, image_path, pal_data)
+
+    def readAndSaveObjectImages(self, lflf_path, bitmap_path, image_path, pal_data):
+        pass
+
     def readPalette(self, lflf_path, palette_num):
         return tableV1Palette
 

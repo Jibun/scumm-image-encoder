@@ -9,20 +9,22 @@ class ImageEncoderBase(ImageCodecBase):
         source_image = self.validateAndQuantizeSourceImage(Image.open(image_path), quantization, freeze_palette)
         width, height = source_image.size
         #source_image = self.saveTempFile(source_image)
-        self.writeBitmap(lflf_path, source_image, width, height, compression_method, freeze_palette)
+        self.writeBitmap(lflf_path, source_image, width, height, compression_method, freeze_palette, quantization)
         self.writeHeader(lflf_path, width, height)
         self.writePalette(lflf_path, source_image.palette.palette, quantization, palette_num, freeze_palette)
         #self.clearTempFile()
 
     def validateAndQuantizeSourceImage(self, source_image, quantization, freeze_palette):
         width, height = source_image.size
-        if not width % 8 or not height % 8:
+        if width % 8 or height % 8:
             raise ScummImageEncoderException("Error: Input image's height and width must both be a mulitple of 8.")
         elif freeze_palette:
             if source_image is None or source_image.palette is None or len(source_image.palette.palette) != 256 * 3:
                 raise ScummImageEncoderException("Error: Input image must have 256 colour palette, if 'freeze palette' option is chosen.")
         elif source_image.palette is None or \
-            (not freeze_palette and len(source_image.palette.palette) > quantization * 3):
+            (not freeze_palette and
+             quantization and
+             len(source_image.palette.palette) > quantization * 3):
             return source_image.quantize(quantization)
         return source_image
 
@@ -49,21 +51,24 @@ class ImageEncoderBase(ImageCodecBase):
         if freeze_palette:
             return
         palette_path = self.getExistingPalettePath(lflf_path, palette_num)
+        if not palette_path:
+            return # If no palette path has been defined, assume we shouldn't write a palette.
         newclutfile = file(palette_path, 'ab')
         newclutfile.seek(8 + 16 * 3, 0) # skip header and EGA palette
-        newpal = array.array('B', palette_data[:quantization * 3]) # copy RGB data for first 160 colours
+        quantization = quantization if quantization else 256
+        newpal = array.array('B', palette_data[:quantization * 3]) # copy RGB data for the quant colours
         newpal.tofile(newclutfile)
         newclutfile.close()
 
-    def writeBitmap(self, lflf_path, source_image, width, height, compression_method, freeze_palette): # use of freeze_palette is a hack...
+    def writeBitmap(self, lflf_path, source_image, width, height, compression_method, freeze_palette, quantization): # use of freeze_palette is a hack...
         pass
 
 class ImageEncoderVgaBase(ImageEncoderBase):
-    def writeBitmap(self, lflf_path, source_image, width, height, compression_method, freeze_palette):
+    def writeBitmap(self, lflf_path, source_image, width, height, compression_method, freeze_palette, quantization):
         width, height = source_image.size
         bitdata = list(source_image.getdata())
         # Write strips
-        newsmapfile = file(self.getBitmapPath(lflf_path), 'wb')
+        newsmapfile = file(self.getNewBitmapPath(lflf_path), 'wb')
         # Write dummy header
         newsmapfile.write('00000000')
         blockStart = newsmapfile.tell()
@@ -78,7 +83,7 @@ class ImageEncoderVgaBase(ImageEncoderBase):
             intToBytes(currStripOffsetValue, LE=1).tofile(newsmapfile)
             currStripOffsetValue += stripSize + 1 # add one for compression ID
 
-        palette_offset = 0 if freeze_palette else 16
+        palette_offset = 0 if (freeze_palette or not quantization or quantization < 240) else 16
 
         for stripNum in xrange(numStrips):
             newsmapfile.write(chr(01)) # tell it it's an uncompressed thingo
