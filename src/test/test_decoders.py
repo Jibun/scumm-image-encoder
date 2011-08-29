@@ -57,9 +57,9 @@ def main(args):
 
     try:
         decodeV1()
-        decodeV2()
-        decodeV5()
-        decodeV6()
+        #decodeV2()
+        #decodeV5()
+        #decodeV6()
     except Exception, e:
         logging.exception("Unhandled exception: \n")
         return 2

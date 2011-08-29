@@ -1,3 +1,5 @@
+import logging
+import os
 import common
 import c64
 
@@ -17,10 +19,21 @@ class DecoderV1(common.ImageDecoderBase):
         bitmap_path = self.getExistingBitmapPath(lflf_path)
         bmp_data = self.readBitmap(lflf_path, bitmap_path, width, height, pal_data)
         self.saveImage(image_path, width, height, bmp_data, pal_data)
-        self.readAndSaveObjectImages(lflf_path, bitmap_path, image_path, pal_data)
+        self.decodeObjectImages(lflf_path, bitmap_path, image_path, pal_data)
 
-    def readAndSaveObjectImages(self, lflf_path, bitmap_path, image_path, pal_data):
-        pass
+    def decodeObjectImages(self, lflf_path, bitmap_path, image_path, pal_data):
+        objNumStrs = [f[-4:] for f in os.listdir(bitmap_path) if f.startswith("OIv1_")]
+        ip, ipext = os.path.splitext(image_path)
+        for objNum in objNumStrs:
+            logging.debug("decoding v1 object #%s" % objNum)
+            try:
+                width, height = c64.readObjectDimensions(lflf_path, objNum)
+                bmp_data = c64.decodeV1Object(lflf_path, width, height, objNum)
+                obj_image_path = "%s-OIv1_%s%s" % (ip, objNum, ipext)
+                self.saveImage(obj_image_path, width, height, bmp_data, pal_data)
+            except Exception, e:
+                logging.error("Unhandled exception attempting to decode v1 object %s." % objNum)
+                #raise e
 
     def readPalette(self, lflf_path, palette_num):
         return tableV1Palette
@@ -29,7 +42,8 @@ class DecoderV1(common.ImageDecoderBase):
         img_data = c64.decodeV1Bitmap(lflf_path, width, height)
         return img_data
 
-    def saveImage(self, image_path, width, height, bmp_data, pal_data):
+    def readDimensions(self, lflf_path):
         """V1 / C64 images store the height and width divided by 8 -
         need to multiply by 8 to get the real height/width."""
-        super(DecoderV1, self).saveImage(image_path, width * 8, height * 8, bmp_data, pal_data)
+        width, height = super(DecoderV1, self).readDimensions(lflf_path)
+        return width * 8, height * 8
