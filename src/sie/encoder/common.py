@@ -9,7 +9,7 @@ class ImageEncoderBase(ImageCodecBase):
         source_image = self.validateAndQuantizeSourceImage(Image.open(image_path), quantization, freeze_palette)
         width, height = source_image.size
         #source_image = self.saveTempFile(source_image)
-        self.writeBitmap(lflf_path, source_image, width, height, compression_method, freeze_palette, quantization)
+        self.writeBitmap(lflf_path, image_path, source_image, width, height, compression_method, freeze_palette, quantization)
         self.writeHeader(lflf_path, width, height)
         self.writePalette(lflf_path, source_image.palette.palette, quantization, palette_num, freeze_palette)
         #self.clearTempFile()
@@ -60,11 +60,11 @@ class ImageEncoderBase(ImageCodecBase):
         newpal.tofile(newclutfile)
         newclutfile.close()
 
-    def writeBitmap(self, lflf_path, source_image, width, height, compression_method, freeze_palette, quantization): # use of freeze_palette is a hack...
+    def writeBitmap(self, lflf_path, image_path, source_image, width, height, compression_method, freeze_palette, quantization): # use of freeze_palette is a hack...
         pass
 
 class ImageEncoderVgaBase(ImageEncoderBase):
-    def writeBitmap(self, lflf_path, source_image, width, height, compression_method, freeze_palette, quantization):
+    def writeBitmap(self, lflf_path, image_path, source_image, width, height, compression_method, freeze_palette, quantization):
         width, height = source_image.size
         bitdata = list(source_image.getdata())
         # Write strips

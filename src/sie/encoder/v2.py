@@ -19,7 +19,7 @@ class EncoderV2(common.ImageEncoderBase):
         logging.debug("  packed data = %r" % data)
         return data
 
-    def writeBitmap(self, lflf_path, source_image, width, height, compression_method, freeze_palette, quantization):
+    def writeBitmap(self, lflf_path, image_path, source_image, width, height, compression_method, freeze_palette, quantization):
         img_file = file(self.getNewBitmapPath(lflf_path), 'wb')
         source_data = source_image.getdata()
         bleed_table = [None] * 128
