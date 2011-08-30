@@ -8,16 +8,36 @@ import common
 
 class EncoderV1(common.ImageEncoderBase):
 
+    def findCommonValuesForRLE(self, data):
+        value_freqs = defaultdict(lambda: 0)
+        for b in data:
+            value_freqs[b] += 1
+        # Sort first by values, then by frequencies. Most frequent should be first.
+        value_freqs_sorted = sorted(value_freqs.items(), key=lambda x: x[0])
+        value_freqs_sorted.sort(key=lambda x: x[1], reverse=True)
+        common = [c for c, f in value_freqs_sorted[:4]]
+        if len(common) < 4: # pad it out to 4 values.
+            common.extend([0] * (4 - len(common)))
+        return common
+
     def packRunInfoV1(self, value, run_length, common, discrete_buffer):
+        # Original encoder seems to favour outputting single discrete values
+        #  (i.e. only 1 value in the run) as a run - this gives better compression
+        #  if the value is a common value, as it only uses 1 byte.
+        if discrete_buffer is not None and len(discrete_buffer) == 1:
+            value = discrete_buffer[0] # this is a bit hackish...
+        
         # Output non-repeated values.
-        if discrete_buffer is not None and len(discrete_buffer):
+        if discrete_buffer is not None and len(discrete_buffer) > 1:
             # Maximum run length value is 0x3F (63) - actual run length of 64.
             data = ''
             while len(discrete_buffer) > 0:
                 buf_size_to_output = min(len(discrete_buffer), 64)
-                data += struct.pack(('<%dB' % buf_size_to_output + 1),
+                db = discrete_buffer[:buf_size_to_output]
+                format = '<%dB' % (buf_size_to_output + 1)
+                data += struct.pack(format,
                                buf_size_to_output - 1, # value counts start from 0, not 1.
-                               *discrete_buffer[:buf_size_to_output])
+                               *db)
                 discrete_buffer = discrete_buffer[buf_size_to_output:]
             return data
         # Output common repeated values.
@@ -31,7 +51,7 @@ class EncoderV1(common.ImageEncoderBase):
                 output = 0x80
                 comval = common.index(value) & 3
                 output |= (comval << 5)
-                rl = run_length & 0x1F
+                rl = min(run_length, 0x1F)
                 output |= rl
                 data += struct.pack('<B', output)
                 run_length -= 0x1F
@@ -43,7 +63,8 @@ class EncoderV1(common.ImageEncoderBase):
             data = ''
             while run_length >= 0:
                 output = 0x40
-                rl = run_length & 0x3F
+                rl = min(run_length, 0x3F)
+                #print "run_length: %d. rl: %d" % (run_length, rl)
                 output |= rl
                 data += struct.pack('<2B', output, value)
                 run_length -= 0x3F
@@ -60,17 +81,14 @@ class EncoderV1(common.ImageEncoderBase):
            A. If previous run was a "discrete value" run, output the "discrete value" buffer, and reset the run.
            B. Else, if in a repeated value run, increment the run counter.
         """
-        #value = None
         last_value = None
         run_length = 0
         discrete_buffer = [] # holds non-run values
+        output_data = ""
 
-        # First, determine the most common value.
-        value_freqs = defaultdict(lambda: 0)
-        for b in data:
-            value_freqs[b] += 1
-        value_freqs_sorted = sorted(value_freqs.items(), cmp=lambda x,y: cmp(x[1], y[1]))
-        common = [c for c, f in value_freqs_sorted[-3:]]
+        # First, determine the most common values.
+        common = self.findCommonValuesForRLE(data)
+        output_data += struct.pack('<4B', *common)
 
         for value in data:
             if last_value is None: # special case for first item
@@ -78,15 +96,15 @@ class EncoderV1(common.ImageEncoderBase):
                 continue
             if value == last_value:
                 if len(discrete_buffer):
-                    self.packRunInfoV1(None, run_length, common, discrete_buffer)
-                    run_length = 0
+                    output_data += self.packRunInfoV1(None, run_length, common, discrete_buffer)
+                    run_length = 1 # because we look a value behind, we already know this run's length is 2.
                     discrete_buffer = []
                 else:
                     run_length += 1
             else:
                 # Output previous run
                 if run_length:
-                    self.packRunInfoV1(last_value, run_length, common, None)
+                    output_data += self.packRunInfoV1(last_value, run_length, common, None)
                     run_length = 0
                     discrete_buffer = []
                 else:
@@ -94,7 +112,10 @@ class EncoderV1(common.ImageEncoderBase):
             last_value = value
 
         # Output last bit of data.
-        self.packRunInfoV1(last_value, run_length, common, discrete_buffer)
+        if not run_length: # hackish
+            discrete_buffer.append(last_value)
+        output_data += self.packRunInfoV1(last_value, run_length, common, discrete_buffer)
+        return output_data
 
     def getCommonColoursV1(self, source):
         """
