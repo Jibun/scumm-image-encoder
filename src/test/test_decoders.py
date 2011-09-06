@@ -8,35 +8,35 @@ import sie.decoder
 
 def decodeV1():
     lflf_path = os.path.join("v1", "res", "LFv1_001")
-    image_path = os.path.join("results", "v1_image1.png")
+    image_path = os.path.join("results", "v1", "v1_image1.png")
     sie.decoder.decodeImage(lflf_path, image_path, 1, 1)
 
 def decodeV2():
     lflf_path = os.path.join("v2", "res", "LFv2_001")
-    image_path = os.path.join("results", "v2_image1.png")
+    image_path = os.path.join("results", "v2", "v2_image1.png")
     sie.decoder.decodeImage(lflf_path, image_path, 2, 1)
 
 def decodeV5():
     lflf_path = os.path.join("v5", "res", "LFLF_001")
-    image_path = os.path.join("results", "v5_image1.png")
+    image_path = os.path.join("results", "v5", "v5_image1.png")
     sie.decoder.decodeImage(lflf_path, image_path, 5, 1)
 
 def decodeV6():
     lflf_path = os.path.join("v6", "res", "LFLF_001")
-    image_path = os.path.join("results", "v6_image1.png")
+    image_path = os.path.join("results", "v6", "v6_image1.png")
     sie.decoder.decodeImage(lflf_path, image_path, 6, 1)
 
     lflf_path = os.path.join("v6", "res", "LFLF_002")
-    image_path = os.path.join("results", "v6_image2.png")
+    image_path = os.path.join("results", "v6", "v6_image2.png")
     sie.decoder.decodeImage(lflf_path, image_path, 6, 1)
 
 
     lflf_path = os.path.join("v6", "res", "LFLF_046")
-    image_path = os.path.join("results", "v6_image3.png")
+    image_path = os.path.join("results", "v6", "v6_image3.png")
     sie.decoder.decodeImage(lflf_path, image_path, 6, 1)
 
 def configure_logging():
-    logging.basicConfig(format="", level=logging.DEBUG)
+    logging.basicConfig(format="", level=logging.INFO)
 
 def validate_args(args, options):
     # TODO: replace this with your own validation

@@ -7,6 +7,10 @@ decryptvalue = 0x69
 class ScummImageEncoderException(Exception):
     pass
 
+def xy2i(x, y, width):
+    """ Converts x,y co-ordinates to an index, for accessing a 1-dimensional array."""
+    return y * width + x
+
 def makeDirs(file_path):
     if file_path and not os.path.exists(file_path):
         dir_path = os.path.dirname(file_path)

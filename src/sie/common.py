@@ -1,4 +1,5 @@
 import xml.etree.ElementTree as et
+import logging
 import os
 import struct
 from sie_util import ScummImageEncoderException, makeDirs
@@ -69,6 +70,7 @@ class HeaderReaderWriterBase(object):
     def updateHeader(self, header_path, width, height):
         pass
 
+
 class HeaderReaderWriterXml(HeaderReaderWriterBase):
     def getHeaderData(self, header_path):
         """Returns the root node of a parsed XML tree."""
@@ -87,6 +89,7 @@ class HeaderReaderWriterXml(HeaderReaderWriterBase):
         root.find("height").text = str(height)
         et.ElementTree(root).write(header_path)
 
+        
 class HeaderReaderWriterBinary(HeaderReaderWriterBase):
     def __init__(self, struct_format, header_binary_index_map):
         self.struct_format = struct_format
@@ -101,6 +104,7 @@ class HeaderReaderWriterBinary(HeaderReaderWriterBase):
 
     def getDimensions(self, header_path):
         data = self.getHeaderData(header_path)
+        logging.debug("Input dimensions: %s" % (data,))
         return data[self.header_binary_index_map["width"]],\
                data[self.header_binary_index_map["height"]]
 
@@ -108,7 +112,8 @@ class HeaderReaderWriterBinary(HeaderReaderWriterBase):
         data = list(self.getHeaderData(header_path))
         data[self.header_binary_index_map["width"]] = width
         data[self.header_binary_index_map["height"]] = height
+        logging.debug("Output dimensions: %s" % (data,))
         hd_file = file(header_path, 'wb')
-        data = struct.pack('<2H', *data)
+        data = struct.pack(self.struct_format, *data)
         hd_file.write(data)
         hd_file.close()

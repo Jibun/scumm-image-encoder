@@ -11,40 +11,40 @@ def encodeV1():
     lflf_path = os.path.join("results", "v1", "LFv1_001")
     image_path = os.path.join("v1", "res", "v1_image1.png")
     sie.encoder.encodeImage(lflf_path, image_path, 1, None, 1, False)
-    image_path = os.path.join("results", "encoded_v1_image1.png")
+    image_path = os.path.join("results", "v1", "encoded_v1_image1.png")
     sie.decoder.decodeImage(lflf_path, image_path, 1, 1)
 
 def encodeV2():
     lflf_path = os.path.join("results", "v2", "LFv2_001")
     image_path = os.path.join("v2", "res", "v2_image1.png")
     sie.encoder.encodeImage(lflf_path, image_path, 2, None, 1, False)
-    image_path = os.path.join("results", "encoded_v2_image1.png")
+    image_path = os.path.join("results", "v2", "encoded_v2_image1.png")
     sie.decoder.decodeImage(lflf_path, image_path, 2, 1)
 
 def encodeV5():
     lflf_path = os.path.join("results", "v5", "LFLF_001")
     image_path = os.path.join("v5", "res", "v5_image1.png")
     sie.encoder.encodeImage(lflf_path, image_path, 5, None, 1, False)
-    image_path = os.path.join("results", "encoded_v5_image1.png")
+    image_path = os.path.join("results", "v5", "encoded_v5_image1.png")
     sie.decoder.decodeImage(lflf_path, image_path, 5, 1)
 
 def encodeV6():
     lflf_path = os.path.join("results", "v6", "LFLF_001")
     image_path = os.path.join("v6", "res", "v6_image1.png")
     sie.encoder.encodeImage(lflf_path, image_path, 6, None, 1, False)
-    image_path = os.path.join("results", "encoded_v6_image1.png")
+    image_path = os.path.join("results", "v6", "encoded_v6_image1.png")
     sie.decoder.decodeImage(lflf_path, image_path, 6, 1)
 
     lflf_path = os.path.join("results", "v6", "LFLF_002")
     image_path = os.path.join("v6", "res", "v6_image2.png")
     sie.encoder.encodeImage(lflf_path, image_path, 6, None, 1, False)
-    image_path = os.path.join("results", "encoded_v6_image2.png")
+    image_path = os.path.join("results", "v6", "encoded_v6_image2.png")
     sie.decoder.decodeImage(lflf_path, image_path, 6, 1)
 
     lflf_path = os.path.join("results", "v6", "LFLF_046")
     image_path = os.path.join("v6", "res", "v6_image3.png")
     sie.encoder.encodeImage(lflf_path, image_path, 6, None, 1, False)
-    image_path = os.path.join("results", "encoded_v6_image3.png")
+    image_path = os.path.join("results", "v6", "encoded_v6_image3.png")
     sie.decoder.decodeImage(lflf_path, image_path, 6, 1)
 
 def configure_logging():

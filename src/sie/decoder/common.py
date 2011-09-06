@@ -37,7 +37,7 @@ class ImageDecoderBase(ImageCodecBase):
         return None
 
     def saveImage(self, image_path, width, height, bmp_data, pal_data):
-        print "Creating output image file..."
+        print "Saving output image file to %s..." % image_path
         # Create our new image!
         im = Image.new('P', (width, height) )
         im.putpalette(pal_data)

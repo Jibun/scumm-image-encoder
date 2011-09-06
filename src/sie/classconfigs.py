@@ -33,7 +33,7 @@ ConfigV1 = CodecClassConfig(
     bitmap_path = ["ROv1"],
     palette_path = None,
     header_path = ["ROv1", "HDv1"],
-    header_binary_format = "<2B",
+    header_binary_format = "<4B", # include 2 unknown byte values
     header_binary_index_map = {"width" : 0, "height" : 1}
 )
 
