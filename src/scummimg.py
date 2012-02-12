@@ -54,14 +54,14 @@ from sie.decoder import *
 from sie.encoder import *
 
 def configure_logging():
-    logging.basicConfig(format="", level=logging.DEBUG,
+    logging.basicConfig(format="", level=logging.INFO,
                         filename='scummimg.log',
                         filemode='w')
 
 def main():
     configure_logging()
     oparser = OptionParser(usage="%prog [options] lflf_path imagefile.png",
-                      version="scumm image encoder v2 r2 beta 1")
+                      version="scumm image encoder v2 r2 beta 2")
     
     oparser.add_option("-e", "--encode", action="store_true",
                       dest="encode", default=False,
