@@ -8,7 +8,7 @@ includes=['pyexpat', 'xml.etree.ElementTree', 'xml.etree.cElementTree']
 
 opts = { 'py2exe': { 'includes':includes } }
 
-setup(version = "2.2 beta 2",
+setup(version = "2.2",
       description = "SCUMM Image Encoder",
       name = "SCUMM Image Encoder",
       author = "Laurence Dougal Myers",
