@@ -58,6 +58,26 @@ class ImageCodecBase(object):
         if bitmap_path and not os.path.exists(bitmap_path):
             raise ScummImageEncoderException("Can't find bitmap file or path: %s" % bitmap_path)
         return bitmap_path
+        
+    def getObjectPath(self, lflf_path, num):
+        """ Can return None, if path defined in config is None."""
+        object_path = self.config.object_path[:]
+        if object_path is None:
+            return None
+        object_path[1] += num
+        return os.path.join(lflf_path, *object_path)
+        
+    def getNewObjectPath(self, lflf_path, num):
+        """ Can return None, if path defined in config is None."""
+        object_path = self.getObjectPath(lflf_path, num)
+        makeDirs(object_path)
+        return object_path
+        
+    def getExistingObjectPath(self, lflf_path, num):
+        object_path = self.getObjectPath(lflf_path, num)
+        if object_path and not os.path.exists(object_path):
+            raise ScummImageEncoderException("Can't find object file or path: %s" % object_path)
+        return object_path
 
 
 class HeaderReaderWriterBase(object):

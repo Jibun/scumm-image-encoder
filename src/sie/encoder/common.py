@@ -1,6 +1,6 @@
 import array
 import os
-import Image
+from PIL import Image
 from sie.common import ImageCodecBase, HeaderReaderWriterBinary, HeaderReaderWriterXml
 from sie.sie_util import ScummImageEncoderException, intToBytes
 
@@ -28,6 +28,12 @@ class ImageEncoderBase(ImageCodecBase):
             return source_image.quantize(quantization)
         return source_image
 
+    def validateAndQuantizeSourceMask(self, source_mask):
+        width, height = source_mask.size
+        if width % 8 or height % 8:
+            raise ScummImageEncoderException("Error: Mask's height and width must both be a mulitple of 8.")
+        return source_mask
+        
     def saveTempFile(self, source_image):
         """ A mega hack. Apparently required because of either a deficiency in PIL or my code."""
         source_image.save('temp.png','png')

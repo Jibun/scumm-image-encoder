@@ -3,7 +3,7 @@ from collections import defaultdict
 import logging
 import os
 import struct
-import Image
+from PIL import Image
 from sie.sie_util import ScummImageEncoderException, makeDirs, xy2i
 import common
 

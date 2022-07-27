@@ -1,6 +1,6 @@
 import os.path
 import struct
-import Image
+from PIL import Image
 from vga import decodeVgaBitmap
 from sie.common import ImageCodecBase, HeaderReaderWriterBinary, HeaderReaderWriterXml
 
@@ -41,6 +41,15 @@ class ImageDecoderBase(ImageCodecBase):
         # Create our new image!
         im = Image.new('P', (width, height) )
         im.putpalette(pal_data)
+        im.putdata(bmp_data)
+        if os.path.splitext(image_path)[1].lower() != '.png':
+            image_path += '.png'
+        im.save(image_path, 'png') # always saves to PNG files.
+    
+    def saveBWImage(self, image_path, width, height, bmp_data):
+        print "Saving output image file to %s..." % image_path
+        # Create our new image!
+        im = Image.new('1', (width, height) )
         im.putdata(bmp_data)
         if os.path.splitext(image_path)[1].lower() != '.png':
             image_path += '.png'

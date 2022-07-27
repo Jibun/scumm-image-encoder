@@ -1,12 +1,15 @@
 class CodecClassConfig(object):
     def __init__(self,
                 bitmap_path,
+                object_path,
                 palette_path,
                 header_path,
                 header_binary_format,
                 header_binary_index_map):
         """
         bitmap_path: the path of the bitmap file (within the LFLF directory).
+                     Should be a list of strings (for cross-platform sub-dir support).
+        object_path: the path of the object bitmap file (within the LFLF directory).
                      Should be a list of strings (for cross-platform sub-dir support).
         palette_path: the path of the palette file (within the LFLF directory). Should be a list of strings.
                      Should be a list of strings (for cross-platform sub-dir support).
@@ -24,6 +27,7 @@ class CodecClassConfig(object):
                       - height
         """
         self.bitmap_path = bitmap_path
+        self.object_path = object_path
         self.palette_path = palette_path
         self.header_path = header_path
         self.header_binary_format = header_binary_format
@@ -31,6 +35,7 @@ class CodecClassConfig(object):
 
 ConfigV1 = CodecClassConfig(
     bitmap_path = ["ROv1"],
+    object_path = None,
     palette_path = None,
     header_path = ["ROv1", "HDv1"],
     header_binary_format = "<4B", # include 2 unknown byte values
@@ -39,6 +44,7 @@ ConfigV1 = CodecClassConfig(
 
 ConfigV2 = CodecClassConfig(
     bitmap_path = ["ROv2", "IMv2"],
+    object_path = ["ROv2", "OIv2_"],
     palette_path = None,
     header_path = ["ROv2", "HDv2"],
     header_binary_format = "<2H",
@@ -47,6 +53,7 @@ ConfigV2 = CodecClassConfig(
 
 ConfigV4 = CodecClassConfig(
     bitmap_path = ["RO", "BM.dmp"],
+    object_path = None,
     palette_path = ["RO", "PA.dmp"],
     header_path = ["RO", "HD.xml"],
     header_binary_format = None,
@@ -55,6 +62,7 @@ ConfigV4 = CodecClassConfig(
 
 ConfigV5 = CodecClassConfig(
     bitmap_path = ["ROOM", "RMIM", "IM00", "SMAP.dmp"],
+    object_path = None,
     palette_path = ["ROOM", "CLUT.dmp"],
     header_path = ["ROOM", "RMHD.xml"],
     header_binary_format = None,
@@ -63,6 +71,7 @@ ConfigV5 = CodecClassConfig(
 
 ConfigV6 = CodecClassConfig(
     bitmap_path = ["ROOM", "RMIM", "IM00", "SMAP.dmp"],
+    object_path = None,
     palette_path = ["ROOM", "PALS", "WRAP", "APAL_%p.dmp"],
     header_path = ["ROOM", "RMHD.xml"],
     header_binary_format = None,

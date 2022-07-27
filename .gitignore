@@ -1,0 +1,12 @@
+syntax: glob
+.idea/
+.svn
+nbproject/
+*.pyc
+ROv2/*
+orig/*
+out/*
+src/enc/*
+src/*.png
+src/*.log
+src/test/results/*.png
