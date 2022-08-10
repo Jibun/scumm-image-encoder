@@ -6,7 +6,7 @@ import os
 import sys
 
 def insert_colours_all(game_path, resource_path):
-    lfv1_paths = [f for f in os.listdir(resource_path) if f.lower().startswith('LFv1_') and os.path.isdir(os.path.join(resource_path, f))]
+    lfv1_paths = [f for f in os.listdir(resource_path) if f.startswith('LFv1_') and os.path.isdir(os.path.join(resource_path, f))]
     for lfv1_path in lfv1_paths:
         insert_colours_single(game_path, os.path.join(resource_path, lfv1_path))
 
@@ -27,13 +27,16 @@ def insert_colours_single(game_path, resource_path):
         enc_colours += chr(ord(bc_file.read(1)) ^ 0xFF)
     bc_file.close()
     # Inject the colours into the game resource files.
-    lfl_file = file(lfl_path, 'ab')
+    logging.debug("File %d - Injecting colours: %s" % (lf_num, enc_colours))
+    lfl_file = file(lfl_path, 'r+b')
     lfl_file.seek(6, os.SEEK_SET)
     lfl_file.write(enc_colours)
     lfl_file.close()
 
 def configure_logging():
-    logging.basicConfig(format="", level=logging.INFO)
+    logging.basicConfig(format="", level=logging.DEBUG,
+                        filename='v1col_insert.log',
+                        filemode='w')
 
 def validate_args(args, options):
     if len(args) < 2:
