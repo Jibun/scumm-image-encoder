@@ -14,10 +14,11 @@
 ## SCUMM v1
 
 - Unpack a LucasArts game with ScummRp.  
-* Unfortunately, ScummRp doesn't extract all the information required (such as the colour palette!), so you need to run `v1col_extract` on the game resources as well. Make sure you extract to the same directory as the ScummRp output.  
+- Unfortunately, ScummRp doesn't extract all the information required (such as the colour palette!), so you need to run `v1col_extract` on the game resources as well. Make sure you extract to the same directory as the ScummRp output.  
 - Decode all images from a room to PNG files. The decoder will spit out the background image, all object images, the background mask and all image masks. Make sure you don't change the file names.  
 Encode the images. When you encode, just specify the file name of the background image - the encoder will also pick up all of the object images and masks.  
-- You can try to pack the game again with ScummRp - unfortunately, when I tried this, it gave me an error about an invalid offset. As such, it seems **you can't actually insert the new graphics back into the game**. If it worked, you would also need to run `v1col_insert` to insert the colour palette.  
+- Pack the game again with ScummRp.
+- Run `v1col_insert` to insert the colour palette.  
 
 The V1 image format was designed for the Commodore 64, so there are some limitations you should be aware of:
 1. Images are divided into 8x8 blocks.  
