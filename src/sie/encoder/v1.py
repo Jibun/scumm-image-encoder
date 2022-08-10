@@ -6,6 +6,7 @@ import struct
 from PIL import Image
 from sie.sie_util import ScummImageEncoderException, makeDirs, xy2i
 import common
+import numpy as np
 
 DEBUG_DUMP = False
 
@@ -60,7 +61,7 @@ class EncoderV1(common.ImageEncoderBase):
                 rl = min(run_length, 0x1F)
                 output |= rl
                 data += struct.pack('<B', output)
-                run_length -= 0x1F
+                run_length -= 0x20 # substract 32 since it's the real run
             return data
         # Output uncommon repeated values.
         else:
@@ -73,7 +74,7 @@ class EncoderV1(common.ImageEncoderBase):
                 #print "run_length: %d. rl: %d" % (run_length, rl)
                 output |= rl
                 data += struct.pack('<2B', output, value)
-                run_length -= 0x3F
+                run_length -= 0x40 # substract 64 since it's the real run
             return data
 
     def compressRLEV1(self, data):
@@ -94,6 +95,8 @@ class EncoderV1(common.ImageEncoderBase):
 
         # First, determine the most common values.
         common = self.findCommonValuesForRLE(data)
+        logging.debug("4 most common bytes on compression:")
+        logging.debug(' '.join(format(x, '02x') for x in common))
         output_data += struct.pack('<4B', *common)
 
         for value in data:
@@ -122,17 +125,81 @@ class EncoderV1(common.ImageEncoderBase):
             discrete_buffer.append(last_value)
         output_data += self.packRunInfo(last_value, run_length, common, discrete_buffer)
         return output_data
+        
+    def compressColourRLEV1(self, data):
+        """
+        Compression compares the current value with the previous value, and
+        performs one of two actions:
+        1. If values are different:
+           A. If previous run was a repeated value, output that run, and reset the "discrete value" buffer.
+           B. Else, if in a "discrete value" run, add the previous value to the "discrete value" buffer.
+        2. If values are the same:
+           A. If previous run was a "discrete value" run, output the "discrete value" buffer, and reset the run.
+           B. Else, if in a repeated value run, increment the run counter.
+        """
+        #last_value = None
+        run_length = 0
+        discrete_buffer = [] # holds non-run values
+        output_data = ""
+        
+        previous_extra_colour = None
+
+        # First, determine the most common values.
+        common = self.findCommonValuesForRLE(data)
+        logging.debug("4 most common bytes on compression:")
+        logging.debug(' '.join(format(x, '02x') for x in common))
+        for idx, x in enumerate(common):
+            common[idx] |= 8
+        output_data += struct.pack('<4B', *common)
+
+        for value in data:
+            if previous_extra_colour is None: # special case for first item
+                #last_value = value
+                previous_extra_colour = value
+                continue
+            if value == 0 or value == previous_extra_colour:
+                if len(discrete_buffer):
+                    output_data += self.packRunInfo(None, run_length, common, discrete_buffer)
+                    run_length = 1 # because we look a value behind, we already know this run's length is 2.
+                    discrete_buffer = []
+                else:
+                    run_length += 1
+            else:
+                # Output previous run
+                if run_length:
+                    output_data += self.packRunInfo(previous_extra_colour | 8, run_length, common, None)
+                    run_length = 0
+                    discrete_buffer = []
+                else:
+                    discrete_buffer.append(previous_extra_colour | 8)
+            #last_value = value
+            if value != 0 and value != previous_extra_colour:
+                previous_extra_colour = value
+
+        # Output last bit of data.
+        if not run_length: # hackish
+            discrete_buffer.append(previous_extra_colour | 8)
+        output_data += self.packRunInfo(previous_extra_colour | 8, run_length, common, discrete_buffer)
+        return output_data
 
     def getCommonColoursV1(self, source_data, width, height):
         """
         Rather than get the 3 most common colours across the whole image, we want
-        to get the most common colours across each 8x8 block.
+        to get the most common colours across each 8x8 block. 
+        
+        Note: Not really. This can help as an alternative to extrapolation, but does not always work
         """
         num_strips = width / 8
         num_blocks = height / 8
+        
+        logging.debug("num_strips %d" % num_strips)
+        logging.debug("num_blocks %d" % num_blocks)
 
+        colour_lists = [[[]]] * 4
+        colour_dic = {1:[], 2:[], 3:[], 4:[]}
         dstPitch = width
         colour_freqs = defaultdict(lambda: 0)
+        #colour_candidates = []
         for strip_i in xrange(num_strips):
             col_start = strip_i * 8
             for block_i in xrange(num_blocks):
@@ -142,11 +209,80 @@ class EncoderV1(common.ImageEncoderBase):
                     for col in xrange(0, 8, 2):
                         val = source_data[row_start + col]
                         block_colours.add(val)
-                for bc in block_colours:
-                    colour_freqs[bc] += 1
-        logging.debug(colour_freqs)
-        colour_freqs_sorted = sorted(colour_freqs.items(), key=lambda x: x[1], reverse=True)
-        return [c for c, f in colour_freqs_sorted[:3]]
+                
+                colour_lists_index = len(block_colours)
+                list_block = list(block_colours)
+                list_block.sort()
+                if list_block not in colour_dic[colour_lists_index]:
+                    colour_dic[colour_lists_index].append(list_block)  
+                    
+                if len(block_colours) >= 3:
+                    for bc in block_colours:
+                        colour_freqs[bc] += 1
+                        
+        logging.debug("Color frequency in block using 3 colours or more: %s" % colour_freqs)
+        logging.debug("Unique colours per block groups: %s" % colour_dic)
+        
+        common_colours = set()
+        candidate_colours = set()
+        
+        # All colors grater than 7 must be common
+        for col_list in colour_dic.values():
+            for col_block in col_list:
+                for col in col_block:
+                    if col > 7:
+                        common_colours.add(col)
+                
+        # Extrapolating common colours from blocks
+        if len(common_colours) < 3:
+            if len(colour_dic[4]) > 1:
+                common_colours = set(colour_dic[4][0]).intersection(set(colour_dic[4][1]))
+            elif len(colour_dic[4]) == 1:
+                candidate_colours = set(colour_dic[4][0]).difference(common_colours)
+                for colours in range(3, 0, -1):
+                    i = 0
+                    while len(common_colours) < 3 and i < len(colour_dic[colours]):
+                        col_set = set(colour_dic[colours][i])
+                        #Removing confirmed common colours from block
+                        cleaned_set = col_set.copy()
+                        cleaned_set.difference_update(common_colours)
+                        if len(cleaned_set.intersection(candidate_colours)) == len(cleaned_set) - 1:
+                            common_colours.update((cleaned_set.intersection(candidate_colours)))
+                            candidate_colours.difference_update((cleaned_set.intersection(candidate_colours)))
+                        i += 1
+            elif len(colour_dic[3]) > 1:
+                i = 0
+                while len(common_colours) < 3 and i < len(colour_dic[3]):
+                    j = i + 1
+                    while len(common_colours) < 3 and j < len(colour_dic[3]):
+                        if len(set(colour_dic[3][i]).intersection(set(colour_dic[3][j]))) == 1:
+                            common_colours.update(set(colour_dic[3][i]).intersection(set(colour_dic[3][j])))
+                        j += 1
+                    i += 1
+                    
+        if len(common_colours) > 3:
+            raise ScummImageEncoderException("More than 3 common colours detected. There is either a block with more than 4 colours or at least one custom colour gratter than 7")
+        elif len(common_colours) == 3: 
+            logging.debug("Common colours extrapolated")
+            common_colours_list = sorted(list(common_colours), key=lambda x: colour_freqs[x], reverse=True)
+        elif len(common_colours) < 3: 
+            logging.debug("Common colours confirmed: %s. Not enough info to extrapolate common colours. Using 'most frequent' method." % list(common_colours))
+            logging.debug("Candidate colours were: %s" % candidate_colours)
+            
+            col_freq_copy = colour_freqs.copy()
+            if len(candidate_colours):
+                col_freq_copy = {keep: colour_freqs[keep] for keep in candidate_colours}
+            else:
+                for col in common_colours:
+                    del col_freq_copy[col]
+                    
+            colour_freqs_sorted = sorted(col_freq_copy.items(), key=lambda x: x[1], reverse=True)
+            
+            common_colours_list = list(common_colours)
+            common_colours_list.extend([c for c, f in colour_freqs_sorted[:(3-len(common_colours))]])
+            common_colours_list = sorted(common_colours_list, key=lambda x: colour_freqs[x], reverse=True)
+        
+        return common_colours_list
 
     def packRowData(self, source_data, common_colours, custom_colour, row_start, width):
         row_data = 0
@@ -251,10 +387,17 @@ class EncoderV1(common.ImageEncoderBase):
             out_path = os.path.join(lflf_path, 'colourMap')
             self.genericWrite(out_path, colourMap)
 
+        logging.debug("Background and objects PicMap before compression (B2v1):")
+        for idx in xrange(0, len(picMap), height/8):
+            logging.debug(' '.join(format(x, '02x') for x in picMap[idx:idx+height/8]))
         picMap = self.compressRLEV1(picMap)
         out_path = os.path.join(lflf_path, 'ROv1', 'B2v1')
         self.genericWrite(out_path, picMap)
-        colourMap = self.compressRLEV1(colourMap)
+        
+        logging.debug("Background and objects ColourMap before compression (B3v1):")
+        for idx in xrange(0, len(colourMap), height/8):
+            logging.debug(' '.join(format(x, '02x') for x in colourMap[idx:idx+height/8]))
+        colourMap = self.compressColourRLEV1(colourMap)
         out_path = os.path.join(lflf_path, 'ROv1', 'B3v1')
         self.genericWrite(out_path, colourMap)
 
@@ -280,6 +423,9 @@ class EncoderV1(common.ImageEncoderBase):
             out_path = os.path.join(lflf_path, 'maskPicMap')
             self.genericWrite(out_path, maskPicMap)
 
+        logging.debug("Background mask PicMap before compression (B4v1):")
+        for idx in xrange(0, len(maskPicMap), height/8):
+            logging.debug(' '.join(format(x, '02d') for x in maskPicMap[idx:idx+height/8]))
         maskPicMap = self.compressRLEV1(maskPicMap)
         out_path = os.path.join(lflf_path, 'ROv1', 'B4v1')
         self.genericWrite(out_path, maskPicMap)
@@ -408,6 +554,9 @@ class EncoderV1(common.ImageEncoderBase):
             raise ScummImageEncoderException("Too many entries in the charMap - " +
             "your background and objects might be too complex!\n" +
             "See if you can re-use an 8x8 block of pixels somewhere.")
+        logging.debug("Background and objects CharMap before compression (B1v1):")
+        for idx in xrange(0, len(charMap), 8):
+            logging.debug(' '.join(format(x, '02x') for x in charMap[idx:idx+8]))
         charMap = self.compressRLEV1(charMap)
         out_path = os.path.join(lflf_path, 'ROv1', 'B1v1')
         self.genericWrite(out_path, charMap)
@@ -416,10 +565,14 @@ class EncoderV1(common.ImageEncoderBase):
         size = len(maskCharMap) + 8
         if size > 65535:
             raise ScummImageEncoderException("Too many entries in the mask char map - max 65527.")
+        logging.debug("Background and objects MASK CharMap before compression (B5v1):")
+        for idx in xrange(0, size, 8):
+            logging.debug(' '.join(format(x, '02x') for x in maskCharMap[idx:idx+8]))
         data = self.compressRLEV1(maskCharMap)
         out_path = os.path.join(lflf_path, 'ROv1', 'B5v1')
         makeDirs(out_path)
         outFile = file(out_path, 'wb')
+        logging.debug("Writting length of mask CharMap: %d" % size)
         outFile.write(struct.pack('<H', size))
         outFile.write(data)
         outFile.close()
@@ -451,9 +604,12 @@ class EncoderV1(common.ImageEncoderBase):
         #  Character map and common colour data is written later, since this info is used/modified by
         #  objects as well.
         charMap, block_map, common_colours = self.writeBackgroundBitmap(lflf_path, source_image.getdata(), width, height)
+        bgCharMapLen = len(charMap) / 8
+        logging.debug("charmap length for background: %d" % (len(charMap) / 8))
         # Read & pack the mask data (as much as we can for now, anyway)
         maskCharMap, mask_block_map = self.writeMaskBitmap(lflf_path, image_path, width, height)
         self.encodeObjectImages(lflf_path, image_path, charMap, maskCharMap, block_map, mask_block_map, common_colours)
+        logging.debug("charmap length for objects: %d" % ((len(charMap) / 8) - bgCharMapLen))
         self.writeCharMap(lflf_path, charMap)
         self.writeMaskCharMap(lflf_path, maskCharMap)
         self.writeCommonColours(lflf_path, common_colours)

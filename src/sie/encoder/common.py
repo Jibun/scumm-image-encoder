@@ -59,7 +59,7 @@ class ImageEncoderBase(ImageCodecBase):
         palette_path = self.getExistingPalettePath(lflf_path, palette_num)
         if not palette_path:
             return # If no palette path has been defined, assume we shouldn't write a palette.
-        newclutfile = file(palette_path, 'ab')
+        newclutfile = file(palette_path, 'r+b')
         newclutfile.seek(8 + 16 * 3, 0) # skip header and EGA palette
         quantization = quantization if quantization else 256
         newpal = array.array('B', palette_data[:quantization * 3]) # copy RGB data for the quant colours

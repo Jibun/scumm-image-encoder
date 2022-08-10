@@ -20,24 +20,36 @@ def readCommonColours(lflf_path):
 def readCharMap(lflf_path):
     charFile = file(os.path.join(lflf_path, 'ROv1', 'B1v1'), 'rb')
     charMap = decodeC64Gfx(charFile, 2048)
+    logging.debug("Background and objects CharMap after decompression (B1v1):")
+    for idx in xrange(0, len(charMap), 8):
+        logging.debug(' '.join(format(x, '02x') for x in charMap[idx:idx+8]))
     charFile.close()
     return charMap
 
 def readPicMap(lflf_path, width, height):
     picFile = file(os.path.join(lflf_path, 'ROv1', 'B2v1'), 'rb')
     picMap = decodeC64Gfx(picFile, (width / 8) * (height / 8))
+    logging.debug("Background and objects PicMap after decompression (B2v1):")
+    for idx in xrange(0, len(picMap), height/8):
+        logging.debug(' '.join(format(x, '02x') for x in picMap[idx:idx+height/8]))
     picFile.close()
     return picMap
 
 def readColourMap(lflf_path, width, height):
     colourFile = file(os.path.join(lflf_path, 'ROv1', 'B3v1'), 'rb')
     colourMap = decodeC64Gfx(colourFile, (width / 8) * (height / 8))
+    logging.debug("Background and objects ColourMap after decompression (B3v1):")
+    for idx in xrange(0, len(colourMap), height/8):
+        logging.debug(' '.join(format(x & 7, '02x') for x in colourMap[idx:idx+height/8]))
     colourFile.close()
     return colourMap
 
 def readMaskPicMap(lflf_path, width, height):
     maskPicFile = file(os.path.join(lflf_path, 'ROv1', 'B4v1'), 'rb')
     maskPicMap = decodeC64Gfx(maskPicFile, (width / 8) * (height / 8))
+    logging.debug("Background mask PicMap after decompression (B4v1):")
+    for idx in xrange(0, len(maskPicMap), height/8):
+        logging.debug(' '.join(format(x, '02d') for x in maskPicMap[idx:idx+height/8]))
     maskPicFile.close()
     return maskPicMap
 
@@ -47,6 +59,9 @@ def readMaskCharMap(lflf_path):
     # From ScummVM comments: "The 16bit length value seems to always be 8 too big. See bug #1837375 for details"
     size = struct.unpack('<H', maskCharFile.read(2))[0] - 8
     maskCharMap = decodeC64Gfx(maskCharFile, size)
+    logging.debug("Background and objects MASK CharMap after decompression (B5v1):")
+    for idx in xrange(0, size, 8):
+        logging.debug(' '.join(format(x, '02x') for x in maskCharMap[idx:idx+8]))
     maskCharFile.close()
     return maskCharMap
 
