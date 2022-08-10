@@ -8,6 +8,8 @@
 
 ### Changelog
 - SCUMM v2 objects and their masks can be decoded and encoded
+- SCUMM v1 background images, objects and their masks can be encoded correctly
+- v1col_insert-py now works properly
 
 ## SCUMM v1
 
