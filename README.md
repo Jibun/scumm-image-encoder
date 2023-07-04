@@ -1,15 +1,24 @@
 # SCUMM Image Encoder - Extended
 
-### This is an update of the original SCUMM Image Encoder by Laurence Dougal Myers
+### This is an update and extension of the original SCUMM Image Encoder by Laurence Dougal Myers
+
+### Credit to
+* Original SCUMM Image Encoder code by Laurence Dougal Myers
+* Code for encoding of v3 background images based on the one in LMRP by Praetorian
 
 ### Links
 * Original repo: https://bitbucket.org/jestar_jokin/scumm-image-encoder/src/master/  
 * The original program and its source code is available at <http://www.jestarjokin.net>
+* LMRP by Preatorian can be obtained from this forum thread: https://forums.scummvm.org/viewtopic.php?t=15067
 
 ### Changelog
-- SCUMM v2 objects and their masks can be decoded and encoded
-- SCUMM v1 background images, objects and their masks can be encoded correctly
-- v1col_insert-py now works properly
+- 04/07/2022
+  - SCUMM v2 background masks can be decoded and encoded
+  - SCUMM v3 background images and masks, objects and their masks can be decoded and encoded 
+- 10/08/2022
+  - SCUMM v2 objects and their masks can be decoded and encoded
+  - SCUMM v1 background images, objects and their masks can be encoded correctly
+  - v1col_insert-py now works properly
 
 ## SCUMM v1
 
@@ -26,11 +35,11 @@ The V1 image format was designed for the Commodore 64, so there are some limitat
 3. There are 3 common colours defined per room, and each 8x8 block can specify its own "custom" colour when it's displayed.  
 4. There is a limit of 256 different 8x8 blocks. This includes the room's background AND all its objects, but not the masks. This is why the objects must be decoded & encoded when the background is decoded/encoded. (Note that a solid block of a "custom" colour could be used multiple times, each time specifying a different "custom" colour, but using the same block data.)
 
-## SCUMM v2
+## SCUMM v2 or v3
 
 - Unpack a LucasArts game with ScummRp.  
-- Decode all images from a room to PNG files. The decoder will spit out the background image, all object images and all image masks. Make sure you don't change the file names.  
-- Encode the images. When you encode, just specify the file name of the background image - the encoder will also pick up all of the object images and masks (replacing any existing files).  
+- Decode all images from a room to PNG files. The decoder will spit out the background image and mask, all object images and all objects masks. Make sure you don't change the file names.  
+- Encode the images. When you encode, just specify the file name of the background image - the encoder will also pick up the mask and all of the object images and masks (replacing any existing files).  
 - Pack the game again with ScummRp.
 
 ## SCUMM v5 or v6
