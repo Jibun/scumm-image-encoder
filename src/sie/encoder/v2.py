@@ -12,6 +12,13 @@ class EncoderV2(common.ImageEncoderBase):
         self.writeHeader(lflf_path, width, height)
         self.writePalette(lflf_path, source_image.palette.palette, quantization, palette_num, freeze_palette)
     
+        # Encoding mask
+        ip, ipext = os.path.splitext(image_path)
+        mask_image_path = "%s-mask%s" % (ip, ipext)
+        source_mask = self.validateAndQuantizeSourceMask(Image.open(mask_image_path))
+        mask_path = self.getNewMaskPath(lflf_path)
+        self.writeMask(mask_path, source_mask, width, height)
+    
         # Get the dir containing all the object images
         object_images_path = os.path.split(image_path)[0]
         # Search for images that match an expected format, representing objects
@@ -187,6 +194,65 @@ class EncoderV2(common.ImageEncoderBase):
         data = self.packRunInfoV2(run, colour, bleeding)
         img_file.write(data)
         img_file.close()
+    
+    def writeMask(self, mask_path, source_mask, width, height):
+        img_file = file(mask_path, 'wb')
+        source_data = source_mask.getdata()
+        
+        logging.debug("Encoding mask image")
+        logging.debug("width: %d, height: %d" % (width, height))
+        if source_mask is not None:
+            # We encode the mask
+            small_width = width >> 3
+            mask_data = source_mask.getdata()
+            compact_data = [0] * small_width * height 
+            
+            for x in xrange(small_width):
+                for y in xrange(height):
+                    byte = 0x00
+                    for i in xrange(8):
+                        bit = mask_data[y * width + x*8+i] / 255
+                        byte = byte | (bit << 7-i)
+                    compact_data[y * small_width + x] = byte
+            
+            previous_value = None
+            run = 0
+            b = None
+            bleeding = False
+            single_values = []
+            for x in xrange(small_width):
+                for y in xrange(height):
+                    b = compact_data[y * small_width + x]
+                    if previous_value is None:
+                        run += 1
+                    elif b is not previous_value:
+                        if run == 1:
+                            single_values.append(previous_value)
+                        else:
+                            data = self.packRunInfoMaskV2(run, previous_value)
+                            img_file.write(data)
+                        run = 1   
+                    elif b is previous_value: 
+                        if run == 1 and len(single_values) > 0:
+                            data = self.packRunInfoMaskMultiSingleV2(single_values)
+                            img_file.write(data)
+                            single_values = []
+                        run += 1
+                    previous_value = b        
+            if run == 1 and len(single_values) > 0:
+                single_values.append(b)
+                data = self.packRunInfoMaskMultiSingleV2(single_values)
+            else:
+                data = self.packRunInfoMaskV2(run, previous_value, True)
+            img_file.write(data)
+            
+        else:
+            # We encode a completely black mask
+            total_to_run = width/8 * height
+            data = self.packRunInfoMaskV2(total_to_run, 0x00)
+            img_file.write(data)
+            
+        img_file.close()
         
     def writeObject(self, object_path, image_path, source_image, source_mask, width, height, compression_method, freeze_palette, quantization):
         img_file = file(object_path, 'wb')
@@ -254,7 +320,7 @@ class EncoderV2(common.ImageEncoderBase):
         data = self.packRunInfoV2(run, colour, bleeding)
         img_file.write(data)
         
-        logging.debug("Encoding mask")
+        logging.debug("Encoding object mask")
         logging.debug("width: %d, height: %d" % (width, height))
         if source_mask is not None:
             # We encode the mask

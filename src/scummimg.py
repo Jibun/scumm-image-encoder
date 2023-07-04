@@ -54,7 +54,7 @@ from sie.decoder import *
 from sie.encoder import *
 
 def configure_logging():
-    logging.basicConfig(format="", level=logging.INFO,
+    logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.DEBUG,
                         filename='scummimg.log',
                         filemode='w')
 
@@ -65,7 +65,7 @@ def main():
     
     oparser.add_option("-e", "--encode", action="store_true",
                       dest="encode", default=False,
-                      help="Encode the given PNG into a format useable by SCUMM V5/v6 games. "
+                      help="Encode the given PNG into a format useable by SCUMM v1/v2/v3/v5/v6 games. "
                       "You must already have an existing unpacked LFLF block, with HD.XML/RMHD.xml, BM/SMAP, and PA/CLUT/APAL files (depending on the target SCUMM version).")
     oparser.add_option("-d", "--decode", action="store_true",
                       dest="decode", default=False,
@@ -85,13 +85,13 @@ def main():
                         "Default: False")
     oparser.add_option("-v", "--sversion", action="store",
                       dest="version", default=6, type="int",
-                      help="The version of SCUMM to target: 1, 2, 5 or 6. Default is 6.")
+                      help="The version of SCUMM to target: 1, 2, 3, 5 or 6. Default is 6.")
     
     options, args = oparser.parse_args()
     
     if (len(args) != 2
         or options.version < 1
-        or (options.version > 2 and options.version < 5)
+        or (options.version > 3 and options.version < 5)
         or options.version > 6
         or options.quantize < 1
         or options.quantize > 256

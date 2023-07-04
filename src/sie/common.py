@@ -78,7 +78,39 @@ class ImageCodecBase(object):
         if object_path and not os.path.exists(object_path):
             raise ScummImageEncoderException("Can't find object file or path: %s" % object_path)
         return object_path
-
+        
+    def getHeaderObjectPath(self, lflf_path, num):
+        """ Can return None, if path defined in config is None."""
+        header_object_path = self.config.header_object_path[:]
+        if header_object_path is None:
+            return None
+        header_object_path[1] += num
+        return os.path.join(lflf_path, *header_object_path)
+        
+    def getExistingHeaderObjectPath(self, lflf_path, num):
+        header_object_path = self.getHeaderObjectPath(lflf_path, num)
+        if header_object_path and not os.path.exists(header_object_path):
+            raise ScummImageEncoderException("Can't find object header file or path: %s" % header_object_path)
+        return header_object_path
+        
+    def getMaskPath(self, lflf_path):
+        """ Can return None, if path defined in config is None."""
+        mask_path = self.config.mask_path
+        if mask_path is None:
+            return None
+        return os.path.join(lflf_path, *mask_path)
+        
+    def getExistingMaskPath(self, lflf_path):
+        mask_path = self.getMaskPath(lflf_path)
+        if mask_path and not os.path.exists(mask_path):
+            raise ScummImageEncoderException("Can't find mask file or path: %s" % mask_path)
+        return mask_path
+        
+    def getNewMaskPath(self, lflf_path):
+        """ Can return None, if path defined in config is None."""
+        mask_path = self.getMaskPath(lflf_path)
+        makeDirs(mask_path)
+        return mask_path
 
 class HeaderReaderWriterBase(object):
     def getHeaderData(self, header_path):

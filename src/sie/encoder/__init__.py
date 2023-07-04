@@ -1,5 +1,6 @@
 import sie.encoder.v1
 import sie.encoder.v2
+import sie.encoder.v3
 import sie.encoder.v4
 import sie.encoder.v5
 import sie.encoder.v6
@@ -10,7 +11,7 @@ _version_map = [
     None,
     (v1.EncoderV1, sie.classconfigs.ConfigV1),
     (v2.EncoderV2, sie.classconfigs.ConfigV2),
-    None,
+    (v3.EncoderV3, sie.classconfigs.ConfigV3),
     (v4.EncoderV4, sie.classconfigs.ConfigV4),
     (v5.EncoderV5, sie.classconfigs.ConfigV5),
     (v6.EncoderV6, sie.classconfigs.ConfigV6)

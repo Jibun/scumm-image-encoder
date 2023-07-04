@@ -28,31 +28,40 @@ class DecoderV2(common.ImageDecoderBase):
         """ V2 background images share "character map" data with the objects, so decode all objects as well."""
         width, height = self.readDimensions(lflf_path)
         self.fixPalette()
-        pal_data = self.readPalette(lflf_path, palette_num)
+        pal_data = self.readPalette(palette_num)
         bitmap_path = self.getExistingBitmapPath(lflf_path)
-        bmp_data = self.readBitmap(lflf_path, bitmap_path, width, height, pal_data)
+        bmp_data = self.readBitmap(bitmap_path, width, height, pal_data)
         self.saveImage(image_path, width, height, bmp_data, pal_data)
+        try:
+            mask_path = self.getExistingMaskPath(lflf_path)
+            mask_data = self.readMask(mask_path, width, height)
+            ip, ipext = os.path.splitext(image_path)
+            mask_image_path = "%s-mask%s" % (ip, ipext)
+            self.saveBWImage(mask_image_path, width, height, mask_data)
+        except Exception, e:
+            print("WARNING: " + str(e))
         # Decode all object images
         self.decodeObjectImages(lflf_path, bitmap_path, image_path, pal_data)
 
     def decodeObjectImages(self, lflf_path, bitmap_path, image_path, pal_data):
-        objNumStrs = [f[-4:] for f in os.listdir(os.path.join(lflf_path, 'ROv2')) if f.startswith("OIv2_")]
+        objNumStrs = [f[-4:] for f in os.listdir(os.path.join(lflf_path, self.config.object_path[0])) if f.startswith(self.config.object_path[1])]
         ip, ipext = os.path.splitext(image_path)
         for objNum in objNumStrs:
             logging.info("Decoding v2 object #%s" % objNum)
-            width, height = ega.readObjectDimensions(lflf_path, objNum)
-            logging.debug("object - width, height: %d, %d" % (width, height))
+            header_object_path = self.getExistingHeaderObjectPath(lflf_path, objNum)
             object_path = self.getExistingObjectPath(lflf_path, objNum)
-            bmp_data, mask_data = self.readObjectBitmap(lflf_path, object_path, width, height, pal_data)
+            width, height = ega.readObjectDimensions(self.config, header_object_path)
+            logging.debug("object - width, height: %d, %d" % (width, height))
+            bmp_data, mask_data = self.readObjectBitmap(object_path, width, height, pal_data)
             obj_image_path = "%s-OIv2_%s%s" % (ip, objNum, ipext)
             self.saveImage(obj_image_path, width, height, bmp_data, pal_data)
             obj_mask_path = "%s-OIv2_%s.mask%s" % (ip, objNum, ipext)
             self.saveBWImage(obj_mask_path, width, height, mask_data)
 
-    def readPalette(self, lflf_path, palette_num):
+    def readPalette(self, palette_num):
         return tableEGAPalette
         
-    def readObjectBitmap(self, lflf_path, bitmap_path, width, height, pal_data):
+    def readObjectBitmap(self, bitmap_path, width, height, pal_data):
         bitmapFile = file(bitmap_path, 'rb')
         try:
             img_data, mask_data = ega.decodeV2ObjectBitmap(bitmapFile, width, height)
@@ -60,10 +69,18 @@ class DecoderV2(common.ImageDecoderBase):
         finally:
             bitmapFile.close()
 
-    def readBitmap(self, lflf_path, bitmap_path, width, height, pal_data):
+    def readBitmap(self, bitmap_path, width, height, pal_data):
         bitmapFile = file(bitmap_path, 'rb')
         try:
             img_data = ega.decodeV2Bitmap(bitmapFile, width, height)
             return img_data
+        finally:
+            bitmapFile.close()
+            
+    def readMask(self, bitmap_path, width, height):
+        bitmapFile = file(bitmap_path, 'rb')
+        try:
+            mask_data = ega.decodeV2Mask(bitmapFile, width, height)
+            return mask_data
         finally:
             bitmapFile.close()

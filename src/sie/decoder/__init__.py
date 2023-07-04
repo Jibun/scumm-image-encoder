@@ -1,5 +1,6 @@
 import sie.decoder.v1
 import sie.decoder.v2
+import sie.decoder.v3
 import sie.decoder.v4
 import sie.decoder.v5
 import sie.decoder.v6
@@ -10,7 +11,7 @@ _version_map = [
     None,
     (v1.DecoderV1, sie.classconfigs.ConfigV1),
     (v2.DecoderV2, sie.classconfigs.ConfigV2),
-    None,
+    (v3.DecoderV3, sie.classconfigs.ConfigV3),
     (v4.DecoderV4, sie.classconfigs.ConfigV4),
     (v5.DecoderV5, sie.classconfigs.ConfigV5),
     (v6.DecoderV6, sie.classconfigs.ConfigV6)
