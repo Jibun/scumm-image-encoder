@@ -139,7 +139,8 @@ def decodeV2ObjectBitmap(smap, width, height):
                 setMaskBitmapData(mask, y ,x, width, colour)   
     except:
         #FIXME OI masks finished by 0x82 are 1 byte too short. Why?
-        logging.debug("mask ended before expected")
+        print("WARNING: mask ended before expected")
+        logging.warning("mask ended before expected")
     return img, mask
     
 def setMaskBitmapData(mask, y, x, width, colour):
@@ -189,6 +190,10 @@ def decodeV3Bitmap(smap, width, height):
             run -= 1
             inv_run += 1
             if run == 0:
+                if smap.tell() >= file_size:
+                    print("WARNING: File ended before image is completed.")
+                    logging.warning("File ended before image is completed.")
+                    return img;
                 colour, = struct.unpack('B', smap.read(1))
                 if colour & 0xC0 == 0xC0:
                     run = colour & 0x3F
@@ -255,6 +260,7 @@ def decodeV3Mask(smap, width, height):
                     if bleed:
                         end_chunk, end_chunk_count = manageChunkCount(end_chunk, end_chunk_count, height, run)
                         if end_chunk and colour == 0x82:
+                            print("WARNING: mask is missing a byte at chunk end")
                             logging.warning("mask is missing a byte at chunk end")
                         else:
                             colour, = struct.unpack('B', smap.read(1))
@@ -265,7 +271,8 @@ def decodeV3Mask(smap, width, height):
                 setMaskBitmapData(mask, y ,x, width, colour)   
     except:
         #FIXME OI masks finished by 0x82 are 1 byte too short. Why?
-        logging.debug("mask ended before expected")
+        print("WARNING: mask ended before expected")
+        logging.warning("mask ended before expected")
     return mask
     
 def decodeV3ObjectBitmap(smap, width, height):
@@ -363,6 +370,7 @@ def decodeV3ObjectBitmap(smap, width, height):
                     if bleed:
                         end_chunk, end_chunk_count = manageChunkCount(end_chunk, end_chunk_count, height, run)
                         if end_chunk and colour == 0x82:
+                            print("WARNING: mask is missing a byte at chunk end")
                             logging.warning("mask is missing a byte at chunk end")
                         else:
                             colour, = struct.unpack('B', smap.read(1))
@@ -373,7 +381,8 @@ def decodeV3ObjectBitmap(smap, width, height):
                 setMaskBitmapData(mask, y ,x, width, colour)   
     except:
         #FIXME OI masks finished by 0x82 are 1 byte too short. Why?
-        logging.debug("mask ended before expected")
+        print("WARNING: mask ended before expected")
+        logging.warning("mask ended before expected")
     return img, mask
 
 def manageChunkCount(end_chunk, end_chunk_count, height, increase):
